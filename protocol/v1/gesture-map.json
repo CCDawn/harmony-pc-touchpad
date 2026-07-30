@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "platform": "windows",
+  "bindings": [
+    {
+      "gesture": "ONE_FINGER_MOVE",
+      "action": "POINTER_MOVE",
+      "configurable": false
+    },
+    {
+      "gesture": "ONE_FINGER_TAP",
+      "action": "LEFT_CLICK",
+      "configurable": false
+    },
+    {
+      "gesture": "ONE_FINGER_DOUBLE_TAP",
+      "action": "DOUBLE_LEFT_CLICK",
+      "configurable": false
+    },
+    {
+      "gesture": "ONE_FINGER_LONG_PRESS_DRAG",
+      "action": "DRAG",
+      "configurable": false
+    },
+    {
+      "gesture": "TWO_FINGER_TAP",
+      "action": "RIGHT_CLICK",
+      "configurable": false
+    },
+    {
+      "gesture": "TWO_FINGER_SCROLL_VERTICAL",
+      "action": "VERTICAL_SCROLL",
+      "configurable": false
+    },
+    {
+      "gesture": "TWO_FINGER_SCROLL_HORIZONTAL",
+      "action": "HORIZONTAL_SCROLL",
+      "configurable": false
+    },
+    {
+      "gesture": "TWO_FINGER_PINCH",
+      "action": "ZOOM_CTRL_WHEEL",
+      "configurable": true
+    },
+    {
+      "gesture": "TWO_FINGER_ROTATE",
+      "action": "DISABLED",
+      "configurable": true
+    },
+    {
+      "gesture": "THREE_FINGER_SWIPE_UP",
+      "action": "TASK_VIEW",
+      "configurable": true
+    },
+    {
+      "gesture": "THREE_FINGER_SWIPE_DOWN",
+      "action": "SHOW_DESKTOP",
+      "configurable": true
+    },
+    {
+      "gesture": "THREE_FINGER_SWIPE_LEFT",
+      "action": "APP_PREVIOUS",
+      "configurable": true
+    },
+    {
+      "gesture": "THREE_FINGER_SWIPE_RIGHT",
+      "action": "APP_NEXT",
+      "configurable": true
+    },
+    {
+      "gesture": "FOUR_FINGER_SWIPE_UP",
+      "action": "DISABLED",
+      "configurable": true
+    },
+    {
+      "gesture": "FOUR_FINGER_SWIPE_DOWN",
+      "action": "DISABLED",
+      "configurable": true
+    },
+    {
+      "gesture": "FOUR_FINGER_SWIPE_LEFT",
+      "action": "DESKTOP_PREVIOUS",
+      "configurable": true
+    },
+    {
+      "gesture": "FOUR_FINGER_SWIPE_RIGHT",
+      "action": "DESKTOP_NEXT",
+      "configurable": true
+    }
+  ]
+}
