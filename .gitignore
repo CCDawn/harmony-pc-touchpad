@@ -12,6 +12,7 @@ build/
 # .NET
 bin/
 obj/
+artifacts/
 
 # Operating systems and editors
 .DS_Store

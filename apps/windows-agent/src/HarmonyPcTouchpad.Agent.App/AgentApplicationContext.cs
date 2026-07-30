@@ -12,6 +12,7 @@ internal sealed class AgentApplicationContext : ApplicationContext
     private readonly WindowsMdnsAdvertiser _advertiser;
     private readonly Func<PairingDisplayContent> _createPairingContent;
     private readonly NotifyIcon _trayIcon;
+    private readonly Control _dispatcher;
     private PairingForm? _pairingForm;
     private bool _advertiserDisposed;
     private bool _hostDisposed;
@@ -31,6 +32,8 @@ internal sealed class AgentApplicationContext : ApplicationContext
         _createPairingContent = createPairingContent ??
             throw new ArgumentNullException(nameof(createPairingContent));
         ArgumentNullException.ThrowIfNull(listenAddresses);
+        _dispatcher = new Control();
+        _dispatcher.CreateControl();
 
         var pairingItem = new ToolStripMenuItem("显示配对二维码");
         pairingItem.Click += (_, _) => ShowPairingCode();
@@ -87,6 +90,7 @@ internal sealed class AgentApplicationContext : ApplicationContext
         {
             _trayIcon.Dispose();
             _pairingForm?.Dispose();
+            _dispatcher.Dispose();
             try
             {
                 DisposeAdvertiser();
@@ -98,6 +102,16 @@ internal sealed class AgentApplicationContext : ApplicationContext
         }
 
         base.Dispose(disposing);
+    }
+
+    public void RequestShowPairingCode()
+    {
+        if (_dispatcher.IsDisposed)
+        {
+            return;
+        }
+
+        _dispatcher.BeginInvoke(ShowPairingCode);
     }
 
     private void ShowPairingCode()

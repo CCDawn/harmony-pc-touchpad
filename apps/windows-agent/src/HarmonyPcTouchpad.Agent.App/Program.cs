@@ -12,7 +12,14 @@ internal static class Program
         ApplicationConfiguration.Initialize();
         try
         {
-            Run(AgentStartupOptions.Parse(args));
+            using var instance = new SingleInstanceCoordinator();
+            if (!instance.IsPrimary)
+            {
+                instance.SignalPrimary();
+                return;
+            }
+
+            Run(AgentStartupOptions.Parse(args), instance);
         }
         catch (Exception error)
         {
@@ -24,7 +31,9 @@ internal static class Program
         }
     }
 
-    private static void Run(AgentStartupOptions options)
+    private static void Run(
+        AgentStartupOptions options,
+        SingleInstanceCoordinator instance)
     {
         string dataRoot = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -104,7 +113,15 @@ internal static class Program
                 CreatePairingContent,
                 options.ShowPairing);
             hostOwnedByContext = true;
-            Application.Run(context);
+            instance.StartListening(context.RequestShowPairingCode);
+            try
+            {
+                Application.Run(context);
+            }
+            finally
+            {
+                instance.StopListening();
+            }
         }
         catch (Exception startupError)
         {

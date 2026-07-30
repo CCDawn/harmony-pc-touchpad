@@ -10,8 +10,9 @@ Turn a HarmonyOS phone into an Apple-style touchpad for Windows 10/11 PCs.
 > one-finger pointer/tap control have passed a real-device LAN acceptance run.
 > Landscape touchpad mode, adjustable drag/scroll behavior, and core
 > two-finger gestures are implemented but still require final real-device
-> acceptance. Installer/distribution signing and beta hardening are not
-> complete.
+> acceptance. The Windows per-user installer has passed local install,
+> shortcut, single-instance, and uninstall acceptance; distribution signing
+> and beta hardening are not complete.
 
 ## Product direction
 
@@ -53,6 +54,8 @@ and internet remote control are outside the MVP.
 - Console-free Windows tray shell with a private-LAN-only Kestrel WSS listener,
   single-controller ownership, bounded messages/rates, idle input release, and
   a two-minute pairing QR window
+- Self-contained Windows x64 installer with desktop/Start menu shortcuts,
+  optional sign-in autostart, and single-instance pairing-window activation
 
 ## Run the contract tests
 
@@ -89,8 +92,9 @@ WSS port `47431` only on discovered RFC1918 or IPv6 ULA addresses.
 - [x] Build secure HarmonyOS pairing
 - [x] Add authenticated HarmonyOS `/input` connection and one-finger control
 - [x] Add immersive landscape mode and deterministic one-/two-finger gestures
+- [x] Package and locally validate the Windows desktop agent
 - [ ] Implement and validate three-/four-finger system gestures
-- [ ] Package and validate the Windows/HarmonyOS beta
+- [ ] Sign and validate the Windows/HarmonyOS public beta
 - [ ] Evaluate Bluetooth HID on HarmonyOS 26/API 23 hardware
 
 ## Security and licensing

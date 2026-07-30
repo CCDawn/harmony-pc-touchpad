@@ -1,8 +1,8 @@
 # Windows agent
 
 This directory contains the console-free Windows tray agent and its
-authenticated local-network transport. It is still a development build:
-installer/signing and real-device HarmonyOS acceptance are not complete.
+authenticated local-network transport. A per-user Windows installer is
+available; distribution signing and final beta hardening are not complete.
 
 ## Implemented
 
@@ -33,7 +33,10 @@ installer/signing and real-device HarmonyOS acceptance are not complete.
 - credential-free `_hptouchpad._tcp` DNS-SD advertisement through the native
   Windows DNS API on the same private interfaces as the WSS listener; and
 - a tray-owned QR window with a two-minute countdown, explicit refresh, and
-  copy fallback. Refreshing invalidates the previous single-use ticket.
+  copy fallback. Refreshing invalidates the previous single-use ticket; and
+- single-instance activation, so opening the desktop or Start menu shortcut
+  again shows the existing pairing window instead of starting a second
+  listener.
 
 The tray menu displays a scannable two-minute pairing JSON payload. Its
 `<agent-id>.local` endpoint matches the advertised DNS-SD host. Semantic
@@ -53,21 +56,38 @@ No arbitrary keyboard input is accepted.
 - `HarmonyPcTouchpad.Agent.Windows`: `IInputSink` and Win32 `SendInput` adapter.
 - `HarmonyPcTouchpad.Agent.App`: console-free tray-process shell.
 
-## Local verification
+## Install and run
+
+Builds created by `scripts/build-windows-installer.ps1` produce
+`HarmonyPcTouchpad-Setup-<version>.exe`. The installer:
+
+- installs for the current Windows user without requiring administrator
+  privileges;
+- creates Start menu and, by default, desktop shortcuts;
+- keeps optional sign-in autostart disabled unless it is selected during
+  setup; and
+- launches the tray agent without a console window.
+
+Double-click **Harmony PC Touchpad** on the desktop or Start menu to open the
+pairing QR window. Closing that window leaves the agent running in the system
+tray. Use the tray icon to reopen pairing or exit the agent.
+
+The development installer is not code-signed, so Windows SmartScreen may show
+an unknown-publisher warning. A trusted code-signing certificate is required
+before public beta distribution.
+
+## Local verification and packaging
 
 ```powershell
 dotnet test HarmonyPcTouchpad.WindowsAgent.slnx --configuration Release
 
-dotnet publish `
-  src/HarmonyPcTouchpad.Agent.App/HarmonyPcTouchpad.Agent.App.csproj `
-  --configuration Release `
-  --self-contained false
+.\..\..\scripts\build-windows-installer.ps1
 ```
 
-The framework-dependent publish requires the .NET 10 Desktop and ASP.NET Core
-runtimes on the target PC. Packaging and signing are intentionally deferred.
-Launching the development build creates or loads the DPAPI-protected identity
-under `%LOCALAPPDATA%\HarmonyPcTouchpad` and opens port `47431` only when at
-least one allowed private address is available. The process imports the TLS
-certificate into the current user's key set because Windows SChannel cannot
-serve TLS from an ephemeral private key.
+The packaging script requires .NET SDK 10 and Inno Setup 6. It publishes a
+self-contained, single-file `win-x64` application, so target PCs do not need a
+separate .NET installation. The application creates or loads the
+DPAPI-protected identity under `%LOCALAPPDATA%\HarmonyPcTouchpad` and opens port
+`47431` only when at least one allowed private address is available. The
+process imports the TLS certificate into the current user's key set because
+Windows SChannel cannot serve TLS from an ephemeral private key.
