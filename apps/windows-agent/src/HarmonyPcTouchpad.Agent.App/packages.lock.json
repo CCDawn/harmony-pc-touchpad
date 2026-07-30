@@ -2,6 +2,12 @@
   "version": 1,
   "dependencies": {
     "net10.0-windows10.0.19041": {
+      "Net.Codecrete.QrCodeGenerator": {
+        "type": "Direct",
+        "requested": "[3.0.0, )",
+        "resolved": "3.0.0",
+        "contentHash": "iBKGrc42ulEsIbWGKnYUO+HQURvpjzER+MgG6ahTi2jEOH8j5PbviH2S+2IAhn+WxRj+4rM31JGJCj/zT8xaDg=="
+      },
       "harmonypctouchpad.agent.core": {
         "type": "Project",
         "dependencies": {

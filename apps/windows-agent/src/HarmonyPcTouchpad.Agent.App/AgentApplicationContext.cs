@@ -10,8 +10,9 @@ internal sealed class AgentApplicationContext : ApplicationContext
     private readonly IInputSink _inputSink;
     private readonly AgentWebSocketHost _host;
     private readonly WindowsMdnsAdvertiser _advertiser;
-    private readonly Func<string> _createPairingPayload;
+    private readonly Func<PairingDisplayContent> _createPairingContent;
     private readonly NotifyIcon _trayIcon;
+    private PairingForm? _pairingForm;
     private bool _advertiserDisposed;
     private bool _hostDisposed;
 
@@ -20,18 +21,18 @@ internal sealed class AgentApplicationContext : ApplicationContext
         AgentWebSocketHost host,
         WindowsMdnsAdvertiser advertiser,
         IReadOnlyList<IPAddress> listenAddresses,
-        Func<string> createPairingPayload)
+        Func<PairingDisplayContent> createPairingContent)
     {
         _inputSink = inputSink ?? throw new ArgumentNullException(nameof(inputSink));
         _host = host ?? throw new ArgumentNullException(nameof(host));
         _advertiser = advertiser ??
             throw new ArgumentNullException(nameof(advertiser));
-        _createPairingPayload = createPairingPayload ??
-            throw new ArgumentNullException(nameof(createPairingPayload));
+        _createPairingContent = createPairingContent ??
+            throw new ArgumentNullException(nameof(createPairingContent));
         ArgumentNullException.ThrowIfNull(listenAddresses);
 
-        var pairingItem = new ToolStripMenuItem("复制配对信息");
-        pairingItem.Click += (_, _) => CopyPairingPayload();
+        var pairingItem = new ToolStripMenuItem("显示配对二维码");
+        pairingItem.Click += (_, _) => ShowPairingCode();
 
         var exitItem = new ToolStripMenuItem("退出");
         exitItem.Click += (_, _) => ExitThread();
@@ -79,6 +80,7 @@ internal sealed class AgentApplicationContext : ApplicationContext
         if (disposing)
         {
             _trayIcon.Dispose();
+            _pairingForm?.Dispose();
             try
             {
                 DisposeAdvertiser();
@@ -92,21 +94,22 @@ internal sealed class AgentApplicationContext : ApplicationContext
         base.Dispose(disposing);
     }
 
-    private void CopyPairingPayload()
+    private void ShowPairingCode()
     {
         try
         {
-            Clipboard.SetText(_createPairingPayload());
-            _trayIcon.ShowBalloonTip(
-                3000,
-                "配对信息已复制",
-                "一次性配对信息将在 2 分钟后失效。",
-                ToolTipIcon.Info);
+            if (_pairingForm is null || _pairingForm.IsDisposed)
+            {
+                _pairingForm = new PairingForm(_createPairingContent);
+            }
+
+            _pairingForm.Show();
+            _pairingForm.Activate();
         }
         catch (Exception error)
         {
             MessageBox.Show(
-                $"无法生成配对信息：{error.Message}",
+                $"无法显示配对二维码：{error.Message}",
                 "Harmony PC Touchpad Agent",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);

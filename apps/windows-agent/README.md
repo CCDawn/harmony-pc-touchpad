@@ -2,8 +2,7 @@
 
 This directory contains the console-free Windows tray agent and its
 authenticated local-network transport. It is still a development build:
-startup registration, installer/signing, and the HarmonyOS client are not
-present yet.
+installer/signing and real-device HarmonyOS acceptance are not complete.
 
 ## Implemented
 
@@ -32,9 +31,11 @@ present yet.
 - 500ms heartbeat negotiation plus fail-closed release after 1000ms without
   traffic; and
 - credential-free `_hptouchpad._tcp` DNS-SD advertisement through the native
-  Windows DNS API on the same private interfaces as the WSS listener.
+  Windows DNS API on the same private interfaces as the WSS listener; and
+- a tray-owned QR window with a two-minute countdown, explicit refresh, and
+  copy fallback. Refreshing invalidates the previous single-use ticket.
 
-The tray menu can copy a two-minute pairing JSON payload. Its
+The tray menu displays a scannable two-minute pairing JSON payload. Its
 `<agent-id>.local` endpoint matches the advertised DNS-SD host. Semantic
 gestures are still rejected
 explicitly at the Windows sink and are not advertised during capability

@@ -1,6 +1,8 @@
 import { common } from '@kit.AbilityKit';
+import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { DiscoveredAgent } from '../discovery/DiscoveryContract';
 import { MdnsDiscoveryRepository } from '../discovery/MdnsDiscoveryRepository';
+import { PairingClient } from '../pairing/PairingClient';
 
 @Entry
 @Component
@@ -8,7 +10,11 @@ struct Index {
   @State private agents: Array<DiscoveredAgent> = [];
   @State private isSearching: boolean = false;
   @State private discoveryError: string = '';
+  @State private isPairing: boolean = false;
+  @State private pairingStatus: string = '';
+  @State private pairingError: string = '';
   private repository?: MdnsDiscoveryRepository;
+  private pairingClient?: PairingClient;
 
   aboutToAppear(): void {
     const context: common.Context =
@@ -19,6 +25,7 @@ struct Index {
         this.agents = agents;
       }
     );
+    this.pairingClient = new PairingClient(context);
     this.startDiscovery();
   }
 
@@ -46,6 +53,36 @@ struct Index {
       this.discoveryError = '发现服务未能正常停止，请稍后重试。';
     } finally {
       this.isSearching = false;
+    }
+  }
+
+  private async scanAndPair(): Promise<void> {
+    if (this.isPairing || this.pairingClient === undefined) {
+      return;
+    }
+
+    this.isPairing = true;
+    this.pairingStatus = '正在打开扫码器…';
+    this.pairingError = '';
+    try {
+      const context: common.Context =
+        this.getUIContext().getHostContext() as common.Context;
+      const result: scanBarcode.ScanResult =
+        await scanBarcode.startScanForResult(context, {
+          scanTypes: [scanCore.ScanType.QR_CODE],
+          enableMultiMode: false,
+          enableAlbum: false
+        });
+      this.pairingStatus = '正在校验电脑证书并建立安全连接…';
+      const agentId: string =
+        await this.pairingClient.pair(result.originalValue);
+      this.pairingStatus = `已安全配对：${agentId}`;
+    } catch (_error) {
+      this.pairingStatus = '';
+      this.pairingError =
+        '配对失败或已取消。请确认二维码未过期，并确保手机与电脑在同一局域网。';
+    } finally {
+      this.isPairing = false;
     }
   }
 
@@ -112,6 +149,37 @@ struct Index {
 
       if (this.discoveryError.length > 0) {
         Text(this.discoveryError)
+          .width('100%')
+          .fontSize(14)
+          .fontColor('#B42318')
+          .backgroundColor('#FEE4E2')
+          .borderRadius(12)
+          .padding(12)
+      }
+
+      Button(this.isPairing ? '正在安全配对…' : '扫描电脑上的配对二维码')
+        .width('100%')
+        .height(52)
+        .type(ButtonType.Capsule)
+        .backgroundColor('#2563EB')
+        .fontColor('#FFFFFF')
+        .enabled(!this.isPairing)
+        .onClick((): void => {
+          this.scanAndPair();
+        })
+
+      if (this.pairingStatus.length > 0) {
+        Text(this.pairingStatus)
+          .width('100%')
+          .fontSize(14)
+          .fontColor('#047857')
+          .backgroundColor('#D1FAE5')
+          .borderRadius(12)
+          .padding(12)
+      }
+
+      if (this.pairingError.length > 0) {
+        Text(this.pairingError)
           .width('100%')
           .fontSize(14)
           .fontColor('#B42318')
