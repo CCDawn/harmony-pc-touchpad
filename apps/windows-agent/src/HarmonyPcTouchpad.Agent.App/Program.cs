@@ -47,13 +47,17 @@ internal static class Program
             TimeProvider.System,
             RequestAuthenticator.AllowedClockSkew,
             RequestAuthenticator.ReplayLifetime);
-        IReadOnlyList<System.Net.IPAddress> addresses =
-            PrivateNetworkAddressDiscovery.Discover();
-        if (addresses.Count == 0)
+        IReadOnlyList<PrivateNetworkBinding> bindings =
+            PrivateNetworkAddressDiscovery.DiscoverBindings();
+        if (bindings.Count == 0)
         {
             throw new InvalidOperationException(
                 "未找到可安全绑定的 RFC1918 或 IPv6 ULA 私有网络地址。");
         }
+        System.Net.IPAddress[] addresses = bindings
+            .Select(binding => binding.Address)
+            .Distinct()
+            .ToArray();
 
         var inputSink = new WindowsInputSink(new NativeWindowsInputApi());
         var host = new AgentWebSocketHost(
@@ -63,10 +67,19 @@ internal static class Program
             pairingAuthority,
             authenticator,
             inputSink);
+        var advertiser = new WindowsMdnsAdvertiser(
+            identity.AgentId,
+            identity.HostName,
+            Environment.MachineName,
+            pairingAllowed: false);
         bool hostOwnedByContext = false;
         try
         {
             host.StartAsync().GetAwaiter().GetResult();
+            advertiser.StartAsync(
+                    bindings.Select(binding => binding.InterfaceIndex))
+                .GetAwaiter()
+                .GetResult();
             string CreatePairingPayload()
             {
                 PairingTicket ticket = tickets.Issue();
@@ -83,16 +96,41 @@ internal static class Program
             using var context = new AgentApplicationContext(
                 inputSink,
                 host,
+                advertiser,
                 addresses,
                 CreatePairingPayload);
             hostOwnedByContext = true;
             Application.Run(context);
         }
-        catch
+        catch (Exception startupError)
         {
             if (!hostOwnedByContext)
             {
-                host.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                var cleanupErrors = new List<Exception>();
+                try
+                {
+                    advertiser.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                }
+                catch (Exception cleanupError)
+                {
+                    cleanupErrors.Add(cleanupError);
+                }
+
+                try
+                {
+                    host.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                }
+                catch (Exception cleanupError)
+                {
+                    cleanupErrors.Add(cleanupError);
+                }
+
+                if (cleanupErrors.Count > 0)
+                {
+                    throw new AggregateException(
+                        "Agent startup and cleanup both failed.",
+                        [startupError, .. cleanupErrors]);
+                }
             }
 
             throw;

@@ -2,8 +2,8 @@
 
 This directory contains the console-free Windows tray agent and its
 authenticated local-network transport. It is still a development build:
-mDNS advertisement, startup registration, installer/signing, and the
-HarmonyOS client are not present yet.
+startup registration, installer/signing, and the HarmonyOS client are not
+present yet.
 
 ## Implemented
 
@@ -30,12 +30,13 @@ HarmonyOS client are not present yet.
   message cap, a sliding 120-frame/s input limit, and a separate bounded
   heartbeat-control rate; and
 - 500ms heartbeat negotiation plus fail-closed release after 1000ms without
-  traffic.
+  traffic; and
+- credential-free `_hptouchpad._tcp` DNS-SD advertisement through the native
+  Windows DNS API on the same private interfaces as the WSS listener.
 
 The tray menu can copy a two-minute pairing JSON payload. Its
-`<agent-id>.local` endpoint is intentionally aligned with the future mDNS
-advertisement, so automatic hostname discovery/resolution is not complete
-until the mDNS increment lands. Semantic gestures are still rejected
+`<agent-id>.local` endpoint matches the advertised DNS-SD host. Semantic
+gestures are still rejected
 explicitly at the Windows sink and are not advertised during capability
 negotiation; they will be added through a separate allowlisted action mapper.
 No arbitrary keyboard input is accepted.
