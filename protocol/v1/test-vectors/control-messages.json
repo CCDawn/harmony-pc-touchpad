@@ -1,0 +1,166 @@
+{
+  "protocol": {
+    "major": 1,
+    "minor": 0
+  },
+  "valid": [
+    {
+      "name": "client hello advertises semantic input capabilities",
+      "message": {
+        "protocol": {
+          "major": 1,
+          "minor": 0
+        },
+        "kind": "HELLO",
+        "messageId": "msg-hello-001",
+        "sessionId": null,
+        "sentAtUs": "123456789",
+        "payload": {
+          "deviceId": "harmony-phone-001",
+          "deviceName": "Harmony Phone",
+          "capabilities": [
+            "pointer-delta",
+            "scroll-v1",
+            "gesture-v1"
+          ]
+        }
+      }
+    },
+    {
+      "name": "server hello acknowledgement fixes safety timers",
+      "message": {
+        "protocol": {
+          "major": 1,
+          "minor": 0
+        },
+        "kind": "HELLO_ACK",
+        "messageId": "msg-hello-ack-001",
+        "sessionId": "session-001",
+        "sentAtUs": "123456800",
+        "payload": {
+          "heartbeatMs": 500,
+          "idleReleaseMs": 1000,
+          "maxInputRateHz": 120,
+          "capabilities": [
+            "pointer-delta",
+            "scroll-v1",
+            "gesture-v1"
+          ]
+        }
+      }
+    },
+    {
+      "name": "heartbeat carries no input command",
+      "message": {
+        "protocol": {
+          "major": 1,
+          "minor": 0
+        },
+        "kind": "PING",
+        "messageId": "msg-ping-001",
+        "sessionId": "session-001",
+        "sentAtUs": "123956800",
+        "payload": {
+          "nonce": "ping-001"
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "unknown major version is incompatible",
+      "error": "Unsupported protocol major version",
+      "message": {
+        "protocol": {
+          "major": 2,
+          "minor": 0
+        },
+        "kind": "PING",
+        "messageId": "msg-version-001",
+        "sessionId": "session-001",
+        "sentAtUs": "123956800",
+        "payload": {
+          "nonce": "ping-001"
+        }
+      }
+    },
+    {
+      "name": "arbitrary keyboard input is not a control-plane operation",
+      "error": "Unknown control message kind",
+      "message": {
+        "protocol": {
+          "major": 1,
+          "minor": 0
+        },
+        "kind": "KEYBOARD_INPUT",
+        "messageId": "msg-keyboard-001",
+        "sessionId": "session-001",
+        "sentAtUs": "123956800",
+        "payload": {
+          "keys": [
+            "WIN",
+            "R"
+          ]
+        }
+      }
+    },
+    {
+      "name": "hello requires a stable device identity",
+      "error": "payload.deviceId",
+      "message": {
+        "protocol": {
+          "major": 1,
+          "minor": 0
+        },
+        "kind": "HELLO",
+        "messageId": "msg-hello-002",
+        "sessionId": null,
+        "sentAtUs": "123456789",
+        "payload": {
+          "deviceName": "Harmony Phone",
+          "capabilities": []
+        }
+      }
+    },
+    {
+      "name": "server cannot negotiate an unbounded input rate",
+      "error": "payload.maxInputRateHz",
+      "message": {
+        "protocol": {
+          "major": 1,
+          "minor": 0
+        },
+        "kind": "HELLO_ACK",
+        "messageId": "msg-hello-ack-002",
+        "sessionId": "session-001",
+        "sentAtUs": "123456800",
+        "payload": {
+          "heartbeatMs": 500,
+          "idleReleaseMs": 1000,
+          "maxInputRateHz": 500,
+          "capabilities": []
+        }
+      }
+    },
+    {
+      "name": "server cannot disable the heartbeat with a zero interval",
+      "error": "payload.heartbeatMs must be greater than zero",
+      "message": {
+        "protocol": {
+          "major": 1,
+          "minor": 0
+        },
+        "kind": "HELLO_ACK",
+        "messageId": "msg-hello-ack-003",
+        "sessionId": "session-001",
+        "sentAtUs": "123456800",
+        "payload": {
+          "heartbeatMs": 0,
+          "idleReleaseMs": 1000,
+          "maxInputRateHz": 120,
+          "capabilities": []
+        }
+      }
+    }
+  ]
+}

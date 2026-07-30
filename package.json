@@ -1,0 +1,14 @@
+{
+  "name": "harmony-pc-touchpad",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Protocol contracts and tooling for the Harmony PC Touchpad project.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT"
+}

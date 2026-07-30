@@ -1,0 +1,135 @@
+{
+  "protocol": {
+    "major": 1,
+    "minor": 0
+  },
+  "byteOrder": "little-endian",
+  "headerBytes": 16,
+  "vectors": [
+    {
+      "name": "pointer delta is coalescible",
+      "frame": {
+        "version": 1,
+        "type": "POINTER_DELTA",
+        "flags": [
+          "COALESCIBLE"
+        ],
+        "sequence": 42,
+        "timestampUs": "123456789",
+        "payload": {
+          "dx": 1.5,
+          "dy": -2.25,
+          "velocity": 3.5
+        }
+      },
+      "hex": "010101002a00000015cd5b07000000000000c03f000010c000006040"
+    },
+    {
+      "name": "left button down is reliable",
+      "frame": {
+        "version": 1,
+        "type": "BUTTON",
+        "flags": [],
+        "sequence": 43,
+        "timestampUs": "123456790",
+        "payload": {
+          "button": "LEFT",
+          "action": "DOWN"
+        }
+      },
+      "hex": "010200002b00000016cd5b070000000001010000"
+    },
+    {
+      "name": "scroll update is coalescible",
+      "frame": {
+        "version": 1,
+        "type": "SCROLL",
+        "flags": [
+          "COALESCIBLE"
+        ],
+        "sequence": 44,
+        "timestampUs": "123456791",
+        "payload": {
+          "dx": -0.5,
+          "dy": 120,
+          "phase": "UPDATE"
+        }
+      },
+      "hex": "010301002c00000017cd5b0700000000000000bf0000f04202000000"
+    },
+    {
+      "name": "three-finger swipe completes upward",
+      "frame": {
+        "version": 1,
+        "type": "GESTURE",
+        "flags": [
+          "FINAL"
+        ],
+        "sequence": 45,
+        "timestampUs": "123456792",
+        "payload": {
+          "gesture": "THREE_FINGER_SWIPE",
+          "phase": "END",
+          "direction": "UP",
+          "value1": 420,
+          "value2": 1250
+        }
+      },
+      "hex": "010402002d00000018cd5b0700000000030301000000d24300409c44"
+    },
+    {
+      "name": "release all is an explicit final boundary",
+      "frame": {
+        "version": 1,
+        "type": "RELEASE_ALL",
+        "flags": [
+          "FINAL"
+        ],
+        "sequence": 46,
+        "timestampUs": "123456793",
+        "payload": {}
+      },
+      "hex": "010502002e00000019cd5b0700000000"
+    },
+    {
+      "name": "pinch update carries an incremental scale ratio",
+      "frame": {
+        "version": 1,
+        "type": "GESTURE",
+        "flags": [
+          "COALESCIBLE"
+        ],
+        "sequence": 47,
+        "timestampUs": "123456794",
+        "payload": {
+          "gesture": "PINCH",
+          "phase": "UPDATE",
+          "direction": "NONE",
+          "value1": 1.125,
+          "value2": 0.5
+        }
+      },
+      "hex": "010401002f0000001acd5b0700000000010200000000903f0000003f"
+    },
+    {
+      "name": "rotate end carries signed radians and angular velocity",
+      "frame": {
+        "version": 1,
+        "type": "GESTURE",
+        "flags": [
+          "FINAL"
+        ],
+        "sequence": 48,
+        "timestampUs": "123456795",
+        "payload": {
+          "gesture": "ROTATE",
+          "phase": "END",
+          "direction": "NONE",
+          "value1": -0.25,
+          "value2": -1.5
+        }
+      },
+      "hex": "01040200300000001bcd5b070000000002030000000080be0000c0bf"
+    }
+  ]
+}

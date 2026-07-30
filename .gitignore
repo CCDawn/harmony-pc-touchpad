@@ -1,0 +1,19 @@
+# Node.js tooling
+node_modules/
+coverage/
+*.log
+
+# HarmonyOS / DevEco Studio
+.hvigor/
+oh_modules/
+.idea/
+build/
+
+# .NET
+bin/
+obj/
+
+# Operating systems and editors
+.DS_Store
+Thumbs.db
+.vscode/
