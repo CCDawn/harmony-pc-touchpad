@@ -24,6 +24,7 @@ $projectPath = Join-Path $repositoryRoot `
     'apps\windows-agent\src\HarmonyPcTouchpad.Agent.App\HarmonyPcTouchpad.Agent.App.csproj'
 $installerScript = Join-Path $repositoryRoot `
     'packaging\windows\installer.iss'
+$publishLockPath = "obj\publish-$Runtime.packages.lock.json"
 
 function Reset-ArtifactDirectory([string]$Path) {
     $fullPath = [IO.Path]::GetFullPath($Path)
@@ -141,7 +142,9 @@ $dotnet = (Get-Command $DotNetPath -ErrorAction Stop).Source
 if (-not $NoRestore) {
     & $dotnet restore $projectPath `
         --runtime $Runtime `
-        --disable-parallel
+        --disable-parallel `
+        "-p:NuGetLockFilePath=$publishLockPath" `
+        -p:RestorePackagesWithLockFile=true
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet restore failed with exit code $LASTEXITCODE"
     }
@@ -159,6 +162,8 @@ if (-not $NoRestore) {
     -p:PublishTrimmed=false `
     -p:DebugType=None `
     -p:DebugSymbols=false `
+    "-p:NuGetLockFilePath=$publishLockPath" `
+    -p:RestorePackagesWithLockFile=true `
     "-p:ApplicationIcon=$iconPath" `
     "-p:Version=$Version"
 if ($LASTEXITCODE -ne 0) {
