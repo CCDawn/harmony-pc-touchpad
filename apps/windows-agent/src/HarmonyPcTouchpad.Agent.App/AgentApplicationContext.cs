@@ -29,8 +29,14 @@ internal sealed class AgentApplicationContext : ApplicationContext
     protected override void ExitThreadCore()
     {
         _trayIcon.Visible = false;
-        _inputSink.ReleaseAll();
-        base.ExitThreadCore();
+        try
+        {
+            _inputSink.ReleaseAll();
+        }
+        finally
+        {
+            base.ExitThreadCore();
+        }
     }
 
     protected override void Dispose(bool disposing)

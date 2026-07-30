@@ -13,6 +13,7 @@ public sealed class InputSession
 {
     private readonly IInputSink _sink;
     private uint _nextSequence;
+    private bool _releasePending;
 
     public InputSession(IInputSink sink)
     {
@@ -23,12 +24,14 @@ public sealed class InputSession
 
     public void Begin()
     {
-        if (State == InputSessionState.Active)
+        if (State != InputSessionState.Inactive)
         {
-            throw new InvalidOperationException("The input session is already active.");
+            throw new InvalidOperationException(
+                "The input session must be inactive before it can begin.");
         }
 
         _nextSequence = 0;
+        _releasePending = false;
         State = InputSessionState.Active;
     }
 
@@ -97,7 +100,16 @@ public sealed class InputSession
         }
 
         State = InputSessionState.Faulted;
-        _sink.ReleaseAll();
+        try
+        {
+            _sink.ReleaseAll();
+            _releasePending = false;
+        }
+        catch
+        {
+            _releasePending = true;
+            throw;
+        }
     }
 
     private void Deactivate()
@@ -107,11 +119,23 @@ public sealed class InputSession
             return;
         }
 
-        InputSessionState previous = State;
-        State = InputSessionState.Inactive;
-        if (previous == InputSessionState.Active)
+        if (State == InputSessionState.Faulted && !_releasePending)
+        {
+            State = InputSessionState.Inactive;
+            return;
+        }
+
+        State = InputSessionState.Faulted;
+        try
         {
             _sink.ReleaseAll();
+            _releasePending = false;
+            State = InputSessionState.Inactive;
+        }
+        catch
+        {
+            _releasePending = true;
+            throw;
         }
     }
 }

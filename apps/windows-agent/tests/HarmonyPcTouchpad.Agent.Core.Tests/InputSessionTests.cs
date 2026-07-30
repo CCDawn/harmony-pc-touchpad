@@ -86,11 +86,38 @@ public sealed class InputSessionTests
         Assert.Equal(InputSessionState.Faulted, session.State);
     }
 
+    [Fact]
+    public void FailedDisconnectReleaseRemainsRetryable()
+    {
+        var sink = new RecordingInputSink { ReleaseFailuresRemaining = 1 };
+        var session = new InputSession(sink);
+        session.Begin();
+        session.Process(new ButtonFrame(
+            1,
+            InputFrameFlags.None,
+            0,
+            1,
+            InputButton.Left,
+            ButtonAction.Down));
+
+        Assert.Throws<InvalidOperationException>(() => session.Disconnect());
+        Assert.Equal(InputSessionState.Faulted, session.State);
+
+        session.Timeout();
+
+        Assert.Equal(
+            ["Button:Left:Down", "ReleaseAll", "ReleaseAll"],
+            sink.Events);
+        Assert.Equal(InputSessionState.Inactive, session.State);
+    }
+
     private sealed class RecordingInputSink : IInputSink
     {
         public List<string> Events { get; } = [];
 
         public bool FailPointerMovement { get; init; }
+
+        public int ReleaseFailuresRemaining { get; set; }
 
         public void MovePointer(PointerDeltaFrame frame)
         {
@@ -111,6 +138,14 @@ public sealed class InputSessionTests
         public void HandleGesture(GestureFrame frame) =>
             Events.Add($"Gesture:{frame.Gesture}:{frame.Direction}");
 
-        public void ReleaseAll() => Events.Add("ReleaseAll");
+        public void ReleaseAll()
+        {
+            Events.Add("ReleaseAll");
+            if (ReleaseFailuresRemaining > 0)
+            {
+                ReleaseFailuresRemaining--;
+                throw new InvalidOperationException("Synthetic release failure.");
+            }
+        }
     }
 }
