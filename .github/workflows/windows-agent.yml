@@ -33,12 +33,18 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Restore locked dependencies
+        run: >-
+          dotnet restore
+          apps/windows-agent/HarmonyPcTouchpad.WindowsAgent.slnx
+          --locked-mode
+
       - name: Test Windows agent
         run: >-
           dotnet test
           apps/windows-agent/HarmonyPcTouchpad.WindowsAgent.slnx
           --configuration Release
-          --locked-mode
+          --no-restore
 
       - name: Publish console-free tray shell
         run: >-
