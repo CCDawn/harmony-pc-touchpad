@@ -24,6 +24,9 @@
     <None Include="..\..\..\..\protocol\v1\test-vectors\input-frames.json"
           Link="Fixtures\input-frames.json"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\..\protocol\v1\discovery-service.json"
+          Link="Fixtures\discovery-service.json"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

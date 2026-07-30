@@ -28,6 +28,8 @@
 - One little-endian binary event per WebSocket binary message.
 - Shared golden vectors consumed by the reference validator, ArkTS, and C#.
 - Exact v1.0 acceptance plus capability-intersection negotiation.
+- DNS-SD discovery uses the separate credential-free
+  [`_hptouchpad._tcp`](discovery-v1.md) contract.
 
 ## Trust model
 

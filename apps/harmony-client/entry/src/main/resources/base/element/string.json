@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Discover and control a trusted PC on the local network."
+    },
+    {
+      "name": "entry_ability_desc",
+      "value": "PC Touchpad main ability."
+    },
+    {
+      "name": "network_permission_reason",
+      "value": "Discover and connect to your PC on the local network."
+    }
+  ]
+}

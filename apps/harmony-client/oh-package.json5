@@ -1,0 +1,8 @@
+{
+  "modelVersion": "5.0.0",
+  "name": "harmony-pc-touchpad",
+  "version": "0.1.0",
+  "description": "Use a HarmonyOS device as a secure PC touchpad.",
+  "dependencies": {},
+  "devDependencies": {}
+}

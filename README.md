@@ -7,7 +7,8 @@ Turn a HarmonyOS phone into an Apple-style touchpad for Windows 10/11 PCs.
 
 > [!IMPORTANT]
 > The Windows agent now contains an authenticated WSS transport, but it is
-> still a development build. mDNS discovery, the HarmonyOS application,
+> still a development build. Windows mDNS advertising and the HarmonyOS
+> discovery application are implemented; pairing UI, input gestures,
 > installer/signing, and beta hardening are not implemented yet.
 
 ## Product direction
@@ -38,6 +39,12 @@ and internet remote control are outside the MVP.
   `SendInput` boundary
 - Cross-runtime [Security contract v1](docs/security-v1.md), replay-safe HMAC
   authentication core, and Windows DPAPI device-secret storage
+- [Discovery contract v1](docs/discovery-v1.md) for credential-free DNS-SD
+  metadata shared by Windows and HarmonyOS
+- Native Windows DNS-SD advertising with explicit per-interface registration
+  and shutdown deregistration
+- Buildable [HarmonyOS client](apps/harmony-client/README.md) with NetworkKit
+  discovery, resolve, validation, deduplication, and lifecycle handling
 - Console-free Windows tray shell with a private-LAN-only Kestrel WSS listener,
   single-controller ownership, bounded messages/rates, and idle input release
 
@@ -72,6 +79,7 @@ WSS port `47431` only on discovered RFC1918 or IPv6 ULA addresses.
 - [x] Build the Windows agent protocol/session/`SendInput` vertical slice
 - [x] Freeze QR pairing, certificate pinning, and HMAC authentication
 - [x] Connect the security core to WSS and the single-controller transport
+- [x] Add Windows mDNS advertising and the HarmonyOS discovery foundation
 - [ ] Build secure HarmonyOS pairing and one-finger control
 - [ ] Implement deterministic one- to four-finger gesture recognition
 - [ ] Package and validate the Windows/HarmonyOS beta
