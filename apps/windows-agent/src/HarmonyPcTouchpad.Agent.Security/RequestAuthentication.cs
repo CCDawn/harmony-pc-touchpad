@@ -139,6 +139,8 @@ public static class AuthSignature
 public sealed class RequestAuthenticator
 {
     public const string InputPath = "/input";
+    public static readonly TimeSpan AllowedClockSkew = TimeSpan.FromSeconds(30);
+    public static readonly TimeSpan ReplayLifetime = TimeSpan.FromMinutes(2);
 
     private const int SecretBytes = 32;
     private const int NonceBytes = 16;
@@ -165,16 +167,18 @@ public sealed class RequestAuthenticator
             throw new ArgumentException("Agent ID is invalid.", nameof(agentId));
         }
 
-        if (allowedClockSkew <= TimeSpan.Zero)
+        if (allowedClockSkew != AllowedClockSkew)
         {
-            throw new ArgumentOutOfRangeException(nameof(allowedClockSkew));
+            throw new ArgumentOutOfRangeException(
+                nameof(allowedClockSkew),
+                $"Allowed clock skew must be exactly {AllowedClockSkew.TotalSeconds} seconds.");
         }
 
-        if (replayLifetime < allowedClockSkew)
+        if (replayLifetime != ReplayLifetime)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(replayLifetime),
-                "Replay lifetime must be at least the allowed clock skew.");
+                $"Replay lifetime must be exactly {ReplayLifetime.TotalMinutes} minutes.");
         }
 
         _agentId = agentId;
@@ -294,8 +298,7 @@ public sealed class RequestAuthenticator
                 return false;
             }
 
-            long timestampExpiry = timestampUnixMs + _replayLifetimeMs;
-            _usedNonces.Add(key, Math.Max(now + _allowedClockSkewMs, timestampExpiry));
+            _usedNonces.Add(key, checked(now + _replayLifetimeMs));
             return true;
         }
     }

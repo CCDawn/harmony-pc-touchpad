@@ -71,6 +71,48 @@ public sealed class RequestAuthenticatorTests
     }
 
     [Fact]
+    public void ReplayEntryIsRetainedForTwoMinutesFromAcceptance()
+    {
+        byte[] secret = Enumerable.Range(0, 32).Select(value => (byte)value).ToArray();
+        var store = new RecordingCredentialStore("phone-001", secret);
+        var clock = new AdjustableTimeProvider(Now);
+        var authenticator = CreateAuthenticator(store, clock);
+        AuthRequest first = Sign(
+            secret,
+            nonceByte: 0x78,
+            Now.AddSeconds(-29).ToUnixTimeMilliseconds());
+
+        Assert.True(authenticator.TryAuthenticate(first));
+
+        clock.Advance(TimeSpan.FromSeconds(119));
+        AuthRequest replay = Sign(
+            secret,
+            nonceByte: 0x78,
+            clock.GetUtcNow().ToUnixTimeMilliseconds());
+
+        Assert.False(authenticator.TryAuthenticate(replay));
+    }
+
+    [Theory]
+    [InlineData(29, 120)]
+    [InlineData(31, 120)]
+    [InlineData(30, 119)]
+    [InlineData(30, 121)]
+    public void AuthenticatorRejectsTimingPoliciesOutsideTheFrozenContract(
+        int clockSkewSeconds,
+        int replayLifetimeSeconds)
+    {
+        var store = new RecordingCredentialStore("phone-001", new byte[32]);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => new RequestAuthenticator(
+            "agent-001",
+            store,
+            new FixedTimeProvider(Now),
+            TimeSpan.FromSeconds(clockSkewSeconds),
+            TimeSpan.FromSeconds(replayLifetimeSeconds)));
+    }
+
+    [Fact]
     public void SignerRejectsMaterialOutsideTheFrozenContract()
     {
         string nonce = Base64Url.Encode(new byte[16]);
@@ -94,18 +136,22 @@ public sealed class RequestAuthenticatorTests
     }
 
     private static RequestAuthenticator CreateAuthenticator(
-        IDeviceCredentialStore store) =>
+        IDeviceCredentialStore store,
+        TimeProvider? clock = null) =>
         new(
             "agent-001",
             store,
-            new FixedTimeProvider(Now),
+            clock ?? new FixedTimeProvider(Now),
             TimeSpan.FromSeconds(30),
             TimeSpan.FromMinutes(2));
 
-    private static AuthRequest Sign(byte[] secret, byte nonceByte)
+    private static AuthRequest Sign(
+        byte[] secret,
+        byte nonceByte,
+        long? timestampUnixMs = null)
     {
         string nonce = Base64Url.Encode(Enumerable.Repeat(nonceByte, 16).ToArray());
-        long timestamp = Now.ToUnixTimeMilliseconds();
+        long timestamp = timestampUnixMs ?? Now.ToUnixTimeMilliseconds();
         string signature = AuthSignature.Create(
             secret,
             "GET",
@@ -126,6 +172,15 @@ public sealed class RequestAuthenticatorTests
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    private sealed class AdjustableTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        private DateTimeOffset _now = now;
+
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        public void Advance(TimeSpan amount) => _now = _now.Add(amount);
     }
 
     private sealed class RecordingCredentialStore(
