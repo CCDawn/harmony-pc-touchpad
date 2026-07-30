@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -53,20 +54,53 @@ public sealed class WindowsAgentIdentityStore
         _clock = clock ?? TimeProvider.System;
     }
 
-    public WindowsAgentIdentity LoadOrCreate() =>
-        File.Exists(_path) ? Load() : Create();
+    public WindowsAgentIdentity LoadOrCreate() => LoadOrCreate([]);
 
-    private WindowsAgentIdentity Create()
+    public WindowsAgentIdentity LoadOrCreate(
+        IReadOnlyCollection<IPAddress> subjectAlternativeAddresses)
     {
-        byte[] identifierBytes = RandomNumberGenerator.GetBytes(16);
-        string agentId;
+        ArgumentNullException.ThrowIfNull(subjectAlternativeAddresses);
+        IPAddress[] addresses = subjectAlternativeAddresses
+            .Distinct()
+            .ToArray();
+        if (!File.Exists(_path))
+        {
+            return Create(agentId: null, addresses, overwrite: false);
+        }
+
+        WindowsAgentIdentity identity = Load();
+        if (CertificateCovers(identity.Certificate, addresses))
+        {
+            return identity;
+        }
+
         try
         {
-            agentId = $"agent-{Convert.ToHexString(identifierBytes).ToLowerInvariant()}";
+            return Create(identity.AgentId, addresses, overwrite: true);
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(identifierBytes);
+            identity.Dispose();
+        }
+    }
+
+    private WindowsAgentIdentity Create(
+        string? agentId,
+        IReadOnlyCollection<IPAddress> subjectAlternativeAddresses,
+        bool overwrite)
+    {
+        if (agentId is null)
+        {
+            byte[] identifierBytes = RandomNumberGenerator.GetBytes(16);
+            try
+            {
+                agentId =
+                    $"agent-{Convert.ToHexString(identifierBytes).ToLowerInvariant()}";
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(identifierBytes);
+            }
         }
 
         string hostName = $"{agentId}.local";
@@ -90,6 +124,11 @@ public sealed class WindowsAgentIdentityStore
             critical: true));
         var subjectNames = new SubjectAlternativeNameBuilder();
         subjectNames.AddDnsName(hostName);
+        foreach (IPAddress address in subjectAlternativeAddresses)
+        {
+            subjectNames.AddIpAddress(address);
+        }
+
         request.CertificateExtensions.Add(subjectNames.Build());
 
         DateTimeOffset now = _clock.GetUtcNow();
@@ -102,7 +141,7 @@ public sealed class WindowsAgentIdentityStore
             X509Certificate2 certificate = LoadCertificate(pfx);
             try
             {
-                Save(agentId, pfx);
+                Save(agentId, pfx, overwrite);
                 return new(agentId, certificate);
             }
             catch
@@ -186,7 +225,10 @@ public sealed class WindowsAgentIdentityStore
         }
     }
 
-    private void Save(string agentId, ReadOnlySpan<byte> pfx)
+    private void Save(
+        string agentId,
+        ReadOnlySpan<byte> pfx,
+        bool overwrite)
     {
         byte[] protectedCertificate = _protector.Protect(pfx);
         try
@@ -221,7 +263,7 @@ public sealed class WindowsAgentIdentityStore
                     stream.Flush(flushToDisk: true);
                 }
 
-                File.Move(temporaryPath, _path, overwrite: false);
+                File.Move(temporaryPath, _path, overwrite);
             }
             finally
             {
@@ -242,6 +284,29 @@ public sealed class WindowsAgentIdentityStore
             pfx,
             password: null,
             X509KeyStorageFlags.UserKeySet);
+
+    private static bool CertificateCovers(
+        X509Certificate2 certificate,
+        IReadOnlyCollection<IPAddress> requiredAddresses)
+    {
+        if (requiredAddresses.Count == 0)
+        {
+            return true;
+        }
+
+        X509Extension? extension = certificate.Extensions["2.5.29.17"];
+        if (extension is null)
+        {
+            return false;
+        }
+
+        var subjectNames = new X509SubjectAlternativeNameExtension(
+            extension.RawData,
+            extension.Critical);
+        HashSet<IPAddress> addresses =
+            subjectNames.EnumerateIPAddresses().ToHashSet();
+        return requiredAddresses.All(addresses.Contains);
+    }
 
     private void Validate(string agentId, X509Certificate2 certificate)
     {

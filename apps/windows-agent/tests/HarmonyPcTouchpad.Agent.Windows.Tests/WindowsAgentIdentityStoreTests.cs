@@ -34,6 +34,50 @@ public sealed class WindowsAgentIdentityStoreTests : IDisposable
     }
 
     [Fact]
+    public void IdentityCertificateIncludesRequestedPrivateAddress()
+    {
+        string path = Path.Combine(_directory, "identity.json");
+        IPAddress address = IPAddress.Parse("192.168.20.18");
+
+        using WindowsAgentIdentity identity =
+            new WindowsAgentIdentityStore(path, new RecordingProtector())
+                .LoadOrCreate([address]);
+
+        X509Extension extension =
+            Assert.Single(
+                identity.Certificate.Extensions
+                    .Cast<X509Extension>(),
+                candidate => candidate.Oid?.Value == "2.5.29.17");
+        var subjectNames = new X509SubjectAlternativeNameExtension(
+            extension.RawData,
+            extension.Critical);
+        Assert.Contains(address, subjectNames.EnumerateIPAddresses());
+    }
+
+    [Fact]
+    public void MissingAddressRotatesCertificateButPreservesAgentIdentity()
+    {
+        string path = Path.Combine(_directory, "identity.json");
+        var protector = new RecordingProtector();
+        var store = new WindowsAgentIdentityStore(path, protector);
+        using WindowsAgentIdentity original = store.LoadOrCreate();
+        string originalFingerprint =
+            CertificateFingerprint.ComputeSpkiSha256(original.Certificate);
+
+        IPAddress address = IPAddress.Parse("192.168.20.18");
+        using WindowsAgentIdentity rotated = store.LoadOrCreate([address]);
+        using WindowsAgentIdentity stable = store.LoadOrCreate([address]);
+
+        Assert.Equal(original.AgentId, rotated.AgentId);
+        Assert.NotEqual(
+            originalFingerprint,
+            CertificateFingerprint.ComputeSpkiSha256(rotated.Certificate));
+        Assert.Equal(
+            CertificateFingerprint.ComputeSpkiSha256(rotated.Certificate),
+            CertificateFingerprint.ComputeSpkiSha256(stable.Certificate));
+    }
+
+    [Fact]
     public void CorruptIdentityFailsClosedInsteadOfRotatingTheCertificate()
     {
         Directory.CreateDirectory(_directory);

@@ -21,7 +21,8 @@ internal sealed class AgentApplicationContext : ApplicationContext
         AgentWebSocketHost host,
         WindowsMdnsAdvertiser advertiser,
         IReadOnlyList<IPAddress> listenAddresses,
-        Func<PairingDisplayContent> createPairingContent)
+        Func<PairingDisplayContent> createPairingContent,
+        bool showPairingOnStartup = false)
     {
         _inputSink = inputSink ?? throw new ArgumentNullException(nameof(inputSink));
         _host = host ?? throw new ArgumentNullException(nameof(host));
@@ -52,6 +53,11 @@ internal sealed class AgentApplicationContext : ApplicationContext
             "Harmony PC Touchpad Agent",
             $"WSS 正在监听 {listenAddresses.Count} 个私有网络地址。",
             ToolTipIcon.Info);
+
+        if (showPairingOnStartup)
+        {
+            ShowPairingCode();
+        }
     }
 
     protected override void ExitThreadCore()

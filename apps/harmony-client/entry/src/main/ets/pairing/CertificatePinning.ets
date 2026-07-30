@@ -50,6 +50,12 @@ export async function verifyAndCacheCertificate(
 ): Promise<string> {
   const tls: socket.TLSSocket = socket.constructTLSSocketInstance();
   try {
+    const useIpv6: boolean = qr.endpointHost.includes(':');
+    await tls.bind({
+      address: useIpv6 ? '::' : '0.0.0.0',
+      family: useIpv6 ? 2 : 1,
+      port: 0
+    });
     const options: socket.TLSConnectOptions = {
       address: {
         address: qr.endpointHost,
