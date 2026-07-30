@@ -1,12 +1,13 @@
 # Harmony PC Touchpad
 
 [![Protocol contract](https://github.com/CCDawn/harmony-pc-touchpad/actions/workflows/protocol-contract.yml/badge.svg)](https://github.com/CCDawn/harmony-pc-touchpad/actions/workflows/protocol-contract.yml)
+[![Windows agent](https://github.com/CCDawn/harmony-pc-touchpad/actions/workflows/windows-agent.yml/badge.svg)](https://github.com/CCDawn/harmony-pc-touchpad/actions/workflows/windows-agent.yml)
 
 Turn a HarmonyOS phone into an Apple-style touchpad for Windows 10/11 PCs.
 
 > [!IMPORTANT]
-> This repository is in the protocol-contract stage. It does not yet contain a
-> usable HarmonyOS application or Windows agent.
+> The Windows agent is an early, offline vertical slice. Its authenticated
+> network transport and the HarmonyOS application are not implemented yet.
 
 ## Product direction
 
@@ -32,6 +33,9 @@ and internet remote control are outside the MVP.
 - Machine-readable [gesture bindings](protocol/v1/gesture-map.json)
 - Cross-language [binary and control-message test vectors](protocol/v1/test-vectors)
 - Dependency-free Node.js reference validators used only to prove the wire contract
+- C# Protocol v1 decoder, fail-closed input session, and testable Win32
+  `SendInput` boundary
+- Console-free Windows tray shell with no listener enabled
 
 ## Run the contract tests
 
@@ -46,10 +50,23 @@ The same vectors will later be consumed by ArkTS and C# tests. A protocol
 change is not complete unless all implementations continue to pass the same
 golden vectors.
 
+## Test the Windows agent
+
+.NET SDK 10.0.302 or a compatible 10.0 feature band is required.
+
+```powershell
+dotnet test apps/windows-agent/HarmonyPcTouchpad.WindowsAgent.slnx -c Release
+```
+
+See [the Windows agent notes](apps/windows-agent/README.md) for the current
+capability and safety boundaries. Running the tray shell does not open a
+network port.
+
 ## Roadmap
 
 - [x] Freeze Protocol v1, safety rules, gesture mapping, and golden vectors
-- [ ] Build the Windows agent vertical slice with a fake input sink
+- [x] Build the Windows agent protocol/session/`SendInput` vertical slice
+- [ ] Add authenticated WSS pairing and the single-controller transport
 - [ ] Build secure HarmonyOS pairing and one-finger control
 - [ ] Implement deterministic one- to four-finger gesture recognition
 - [ ] Package and validate the Windows/HarmonyOS beta

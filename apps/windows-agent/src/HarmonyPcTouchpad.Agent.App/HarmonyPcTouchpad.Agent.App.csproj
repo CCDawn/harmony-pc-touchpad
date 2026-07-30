@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HarmonyPcTouchpad.Agent.Core\HarmonyPcTouchpad.Agent.Core.csproj" />
+    <ProjectReference Include="..\HarmonyPcTouchpad.Agent.Windows\HarmonyPcTouchpad.Agent.Windows.csproj" />
+  </ItemGroup>
+</Project>
