@@ -1,7 +1,10 @@
 # Third-party notices
 
-No third-party source code is incorporated in the repository at the Protocol v1
-stage.
+No third-party application source code is incorporated in the repository.
+The Windows agent test projects use the NuGet packages xUnit.net,
+Microsoft.NET.Test.Sdk, xunit.runner.visualstudio, and coverlet.collector under
+their respective licenses; they are development-only dependencies and are not
+shipped with the tray application.
 
 The project architecture and gesture behavior were informed by public
 documentation and open-source research, including the MIT-licensed

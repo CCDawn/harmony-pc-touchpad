@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0-windows10.0.19041": {
+      "harmonypctouchpad.agent.core": {
+        "type": "Project",
+        "dependencies": {
+          "HarmonyPcTouchpad.Agent.Protocol": "[1.0.0, )"
+        }
+      },
+      "harmonypctouchpad.agent.protocol": {
+        "type": "Project"
+      }
+    }
+  }
+}
