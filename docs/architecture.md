@@ -37,6 +37,18 @@ The local network is not trusted. mDNS is discovery-only and never carries a
 credential. A discovered endpoint cannot inject input until certificate
 validation and paired-device authentication both succeed.
 
+Pairing uses two TLS connections deliberately:
+
+1. a temporary `TLSSocket` retrieves the peer certificate and accepts it only
+   when the SHA-256 hash of its DER SubjectPublicKeyInfo matches the QR code;
+2. that exact verified certificate is saved in app-private storage and used as
+   the sole `caPath` trust anchor for the official WebSocket pairing request.
+
+The production WebSocket never disables certificate verification. The
+one-time device secret returned over that pinned channel is imported as a
+non-exported HMAC-SHA256 key in HUKS; Preferences stores only public pairing
+metadata and the HUKS alias.
+
 The HarmonyOS application is trusted to recognize gestures, but it is not
 trusted to choose arbitrary Windows key sequences. It can only emit protocol
 events and gesture identifiers. The Windows action mapper owns the final

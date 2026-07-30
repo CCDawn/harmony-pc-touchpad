@@ -12,6 +12,11 @@ The tray application also uses the Microsoft ASP.NET Core shared framework for
 its Kestrel HTTPS/WebSocket host; no ASP.NET Core source is copied into this
 repository.
 
+The Windows tray application uses
+[`Net.Codecrete.QrCodeGenerator`](https://github.com/manuelbl/QrCodeGenerator)
+3.0.0 to render pairing payloads as QR codes. The package is copyright
+Manuel Bleichenbacher and is distributed under the MIT License.
+
 The project architecture and gesture behavior were informed by public
 documentation and open-source research, including the MIT-licensed
 [Mousedroid](https://github.com/darusc/Mousedroid) project. Its source has not

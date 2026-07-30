@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Net.Codecrete.QrCodeGenerator" Version="3.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\HarmonyPcTouchpad.Agent.Core\HarmonyPcTouchpad.Agent.Core.csproj" />
     <ProjectReference Include="..\HarmonyPcTouchpad.Agent.Security\HarmonyPcTouchpad.Agent.Security.csproj" />
     <ProjectReference Include="..\HarmonyPcTouchpad.Agent.Transport\HarmonyPcTouchpad.Agent.Transport.csproj" />

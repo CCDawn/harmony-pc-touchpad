@@ -80,10 +80,10 @@ internal static class Program
                     bindings.Select(binding => binding.InterfaceIndex))
                 .GetAwaiter()
                 .GetResult();
-            string CreatePairingPayload()
+            PairingDisplayContent CreatePairingContent()
             {
                 PairingTicket ticket = tickets.Issue();
-                return PairingQrCodec.Encode(new(
+                string payload = PairingQrCodec.Encode(new(
                     1,
                     identity.AgentId,
                     new Uri(
@@ -91,6 +91,7 @@ internal static class Program
                     CertificateFingerprint.ComputeSpkiSha256(identity.Certificate),
                     ticket.Token,
                     ticket.ExpiresAt.ToUnixTimeMilliseconds()));
+                return new(payload, ticket.ExpiresAt);
             }
 
             using var context = new AgentApplicationContext(
@@ -98,7 +99,7 @@ internal static class Program
                 host,
                 advertiser,
                 addresses,
-                CreatePairingPayload);
+                CreatePairingContent);
             hostOwnedByContext = true;
             Application.Run(context);
         }

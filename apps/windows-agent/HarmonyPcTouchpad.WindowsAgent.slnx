@@ -8,6 +8,7 @@
     <Project Path="src/HarmonyPcTouchpad.Agent.Windows/HarmonyPcTouchpad.Agent.Windows.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/HarmonyPcTouchpad.Agent.App.Tests/HarmonyPcTouchpad.Agent.App.Tests.csproj" />
     <Project Path="tests/HarmonyPcTouchpad.Agent.Core.Tests/HarmonyPcTouchpad.Agent.Core.Tests.csproj" />
     <Project Path="tests/HarmonyPcTouchpad.Agent.Protocol.Tests/HarmonyPcTouchpad.Agent.Protocol.Tests.csproj" />
     <Project Path="tests/HarmonyPcTouchpad.Agent.Security.Tests/HarmonyPcTouchpad.Agent.Security.Tests.csproj" />

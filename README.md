@@ -8,8 +8,9 @@ Turn a HarmonyOS phone into an Apple-style touchpad for Windows 10/11 PCs.
 > [!IMPORTANT]
 > The Windows agent now contains an authenticated WSS transport, but it is
 > still a development build. Windows mDNS advertising and the HarmonyOS
-> discovery application are implemented; pairing UI, input gestures,
-> installer/signing, and beta hardening are not implemented yet.
+> discovery and secure-pairing application are implemented; input gestures,
+> installer/signing, and beta hardening are not implemented yet. Real-device
+> acceptance of Scan Kit, TLS certificate anchoring, and HUKS remains required.
 
 ## Product direction
 
@@ -44,9 +45,11 @@ and internet remote control are outside the MVP.
 - Native Windows DNS-SD advertising with explicit per-interface registration
   and shutdown deregistration
 - Buildable [HarmonyOS client](apps/harmony-client/README.md) with NetworkKit
-  discovery, resolve, validation, deduplication, and lifecycle handling
+  discovery plus Scan Kit QR pairing, SPKI pinning, exact-certificate WSS
+  trust, and HUKS-backed device-secret storage
 - Console-free Windows tray shell with a private-LAN-only Kestrel WSS listener,
-  single-controller ownership, bounded messages/rates, and idle input release
+  single-controller ownership, bounded messages/rates, idle input release, and
+  a two-minute pairing QR window
 
 ## Run the contract tests
 
@@ -80,7 +83,8 @@ WSS port `47431` only on discovered RFC1918 or IPv6 ULA addresses.
 - [x] Freeze QR pairing, certificate pinning, and HMAC authentication
 - [x] Connect the security core to WSS and the single-controller transport
 - [x] Add Windows mDNS advertising and the HarmonyOS discovery foundation
-- [ ] Build secure HarmonyOS pairing and one-finger control
+- [x] Build secure HarmonyOS pairing
+- [ ] Add authenticated HarmonyOS `/input` connection and one-finger control
 - [ ] Implement deterministic one- to four-finger gesture recognition
 - [ ] Package and validate the Windows/HarmonyOS beta
 - [ ] Evaluate Bluetooth HID on HarmonyOS 26/API 23 hardware
