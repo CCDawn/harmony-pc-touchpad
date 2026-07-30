@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HarmonyPcTouchpad.Agent.Core\HarmonyPcTouchpad.Agent.Core.csproj" />
+    <ProjectReference Include="..\HarmonyPcTouchpad.Agent.Protocol\HarmonyPcTouchpad.Agent.Protocol.csproj" />
+    <ProjectReference Include="..\HarmonyPcTouchpad.Agent.Security\HarmonyPcTouchpad.Agent.Security.csproj" />
+  </ItemGroup>
+</Project>

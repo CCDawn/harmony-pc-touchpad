@@ -6,8 +6,9 @@
 Turn a HarmonyOS phone into an Apple-style touchpad for Windows 10/11 PCs.
 
 > [!IMPORTANT]
-> The Windows agent is an early, offline vertical slice. Its authenticated
-> network transport and the HarmonyOS application are not implemented yet.
+> The Windows agent now contains an authenticated WSS transport, but it is
+> still a development build. mDNS discovery, the HarmonyOS application,
+> installer/signing, and beta hardening are not implemented yet.
 
 ## Product direction
 
@@ -37,7 +38,8 @@ and internet remote control are outside the MVP.
   `SendInput` boundary
 - Cross-runtime [Security contract v1](docs/security-v1.md), replay-safe HMAC
   authentication core, and Windows DPAPI device-secret storage
-- Console-free Windows tray shell with no listener enabled
+- Console-free Windows tray shell with a private-LAN-only Kestrel WSS listener,
+  single-controller ownership, bounded messages/rates, and idle input release
 
 ## Run the contract tests
 
@@ -61,15 +63,15 @@ dotnet test apps/windows-agent/HarmonyPcTouchpad.WindowsAgent.slnx -c Release
 ```
 
 See [the Windows agent notes](apps/windows-agent/README.md) for the current
-capability and safety boundaries. Running the tray shell does not open a
-network port.
+capability and safety boundaries. Running the tray shell opens authenticated
+WSS port `47431` only on discovered RFC1918 or IPv6 ULA addresses.
 
 ## Roadmap
 
 - [x] Freeze Protocol v1, safety rules, gesture mapping, and golden vectors
 - [x] Build the Windows agent protocol/session/`SendInput` vertical slice
 - [x] Freeze QR pairing, certificate pinning, and HMAC authentication
-- [ ] Connect the security core to WSS and the single-controller transport
+- [x] Connect the security core to WSS and the single-controller transport
 - [ ] Build secure HarmonyOS pairing and one-finger control
 - [ ] Implement deterministic one- to four-finger gesture recognition
 - [ ] Package and validate the Windows/HarmonyOS beta

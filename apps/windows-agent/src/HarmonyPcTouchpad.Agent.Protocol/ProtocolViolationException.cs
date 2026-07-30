@@ -6,4 +6,9 @@ public sealed class ProtocolViolationException : Exception
         : base(message)
     {
     }
+
+    public ProtocolViolationException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
 }

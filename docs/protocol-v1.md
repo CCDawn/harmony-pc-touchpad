@@ -24,6 +24,12 @@ remote-shell commands.
   display name, port, and whether pairing is currently allowed.
 - Only one authenticated device can own the control lease.
 
+After the authenticated `/input` upgrade, the client sends `HELLO`, receives
+`HELLO_ACK`, sends `CONTROL_REQUEST`, and receives `CONTROL_GRANTED` before any
+binary input frame. The `HELLO` device identifier must match the authenticated
+upgrade identity. While controlling, text messages are limited to `PING` and
+`PONG`; any other control kind is a protocol violation.
+
 The exact QR, pairing, certificate pinning, and HMAC upgrade contract is frozen
 in [Security contract v1](security-v1.md). It is not part of the binary input
 frame format.

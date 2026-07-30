@@ -4,12 +4,14 @@
     <Project Path="src/HarmonyPcTouchpad.Agent.Core/HarmonyPcTouchpad.Agent.Core.csproj" />
     <Project Path="src/HarmonyPcTouchpad.Agent.Protocol/HarmonyPcTouchpad.Agent.Protocol.csproj" />
     <Project Path="src/HarmonyPcTouchpad.Agent.Security/HarmonyPcTouchpad.Agent.Security.csproj" />
+    <Project Path="src/HarmonyPcTouchpad.Agent.Transport/HarmonyPcTouchpad.Agent.Transport.csproj" />
     <Project Path="src/HarmonyPcTouchpad.Agent.Windows/HarmonyPcTouchpad.Agent.Windows.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/HarmonyPcTouchpad.Agent.Core.Tests/HarmonyPcTouchpad.Agent.Core.Tests.csproj" />
     <Project Path="tests/HarmonyPcTouchpad.Agent.Protocol.Tests/HarmonyPcTouchpad.Agent.Protocol.Tests.csproj" />
     <Project Path="tests/HarmonyPcTouchpad.Agent.Security.Tests/HarmonyPcTouchpad.Agent.Security.Tests.csproj" />
+    <Project Path="tests/HarmonyPcTouchpad.Agent.Transport.Tests/HarmonyPcTouchpad.Agent.Transport.Tests.csproj" />
     <Project Path="tests/HarmonyPcTouchpad.Agent.Windows.Tests/HarmonyPcTouchpad.Agent.Windows.Tests.csproj" />
   </Folder>
 </Solution>

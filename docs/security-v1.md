@@ -117,9 +117,29 @@ The server:
    device identifier exists.
 
 Authentication completes before `AcceptWebSocketAsync`. Compression remains
-disabled. The later transport layer must also enforce one upgraded input
-connection, bounded message sizes, an input-rate limit, and the idle-release
-timeout.
+disabled.
+
+## Windows transport enforcement
+
+The development Windows host enforces the transport boundary together rather
+than enabling a partially protected listener:
+
+- Kestrel binds port `47431` only to enumerated RFC1918 IPv4 or IPv6 ULA
+  interface addresses; wildcard, loopback, link-local, and public bindings are
+  rejected;
+- `/pair` consumes the one-time token and `/input` verifies the HMAC before
+  WebSocket upgrade;
+- exactly one authenticated `/input` connection can hold the controller
+  lease; another valid device receives HTTP `409` before upgrade;
+- WebSocket compression is disabled, messages are capped at 4096 bytes, input
+  frames use a sliding 120Hz limit, and heartbeat control traffic has its own
+  bounded rate; and
+- the negotiated heartbeat is 500ms and no traffic for 1000ms closes the
+  connection and invokes `RELEASE_ALL`.
+
+The Windows TLS identity is stable across restarts. Its private-key PFX is
+encrypted with DPAPI `CurrentUser`; a corrupt, mismatched, or expired identity
+fails startup instead of silently rotating the pinned certificate.
 
 ## Cross-runtime vectors
 

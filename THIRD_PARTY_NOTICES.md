@@ -8,6 +8,9 @@ shipped with the tray application.
 
 The Windows runtime project uses Microsoft's
 `System.Security.Cryptography.ProtectedData` package to access Windows DPAPI.
+The tray application also uses the Microsoft ASP.NET Core shared framework for
+its Kestrel HTTPS/WebSocket host; no ASP.NET Core source is copied into this
+repository.
 
 The project architecture and gesture behavior were informed by public
 documentation and open-source research, including the MIT-licensed
