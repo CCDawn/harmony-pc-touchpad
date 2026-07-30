@@ -7,6 +7,7 @@ import { MdnsDiscoveryRepository } from '../discovery/MdnsDiscoveryRepository';
 struct Index {
   @State private agents: Array<DiscoveredAgent> = [];
   @State private isSearching: boolean = false;
+  @State private discoveryError: string = '';
   private repository?: MdnsDiscoveryRepository;
 
   aboutToAppear(): void {
@@ -27,13 +28,25 @@ struct Index {
   }
 
   private startDiscovery(): void {
-    this.repository?.start();
-    this.isSearching = this.repository?.isRunning() ?? false;
+    try {
+      this.repository?.start();
+      this.isSearching = this.repository?.isRunning() ?? false;
+      this.discoveryError = '';
+    } catch (_error) {
+      this.isSearching = false;
+      this.discoveryError = '无法启动局域网发现，请检查网络后重试。';
+    }
   }
 
   private stopDiscovery(): void {
-    this.repository?.stop();
-    this.isSearching = false;
+    try {
+      this.repository?.stop();
+      this.discoveryError = '';
+    } catch (_error) {
+      this.discoveryError = '发现服务未能正常停止，请稍后重试。';
+    } finally {
+      this.isSearching = false;
+    }
   }
 
   @Builder
@@ -96,6 +109,16 @@ struct Index {
           })
       }
       .width('100%')
+
+      if (this.discoveryError.length > 0) {
+        Text(this.discoveryError)
+          .width('100%')
+          .fontSize(14)
+          .fontColor('#B42318')
+          .backgroundColor('#FEE4E2')
+          .borderRadius(12)
+          .padding(12)
+      }
 
       if (this.agents.length === 0) {
         Column({ space: 12 }) {
