@@ -102,6 +102,14 @@ All integers and IEEE-754 `float32` values use little-endian byte order.
 dx:f32, dy:f32, velocity:f32
 ```
 
+`dx` and `dy` are the displacement since the previous transmitted sample in
+ArkUI virtual pixels (`vp`). Positive `dx` points right and positive `dy`
+points down. `velocity` is the non-negative displacement magnitude in `vp/s`.
+The Windows agent applies the configured sensitivity and acceleration curve;
+the client does not transmit desktop pixels.
+
+Every `POINTER_DELTA` frame carries exactly the `COALESCIBLE` flag.
+
 #### `BUTTON`
 
 ```text
@@ -119,6 +127,13 @@ dx:f32, dy:f32, phase:u8, reserved:u24=0
 
 Phases are `BEGIN=1`, `UPDATE=2`, `END=3`, and `CANCEL=4`.
 
+`dx` and `dy` are two-finger centroid displacement since the previous sample
+in `vp`, with positive values pointing right and down. The Windows agent owns
+natural-scroll inversion, accumulation, and conversion to wheel units.
+
+`BEGIN` carries no flags, `UPDATE` carries exactly `COALESCIBLE`, and `END` or
+`CANCEL` carries exactly `FINAL`.
+
 #### `GESTURE`
 
 ```text
@@ -128,20 +143,28 @@ value1:f32, value2:f32
 
 Gestures are `PINCH=1`, `ROTATE=2`, `THREE_FINGER_SWIPE=3`, and
 `FOUR_FINGER_SWIPE=4`. Directions are `NONE=0`, `UP=1`, `DOWN=2`, `LEFT=3`,
-and `RIGHT=4`. Value meanings are gesture-specific and will be documented with
-the ArkTS gesture-engine trace fixtures.
+and `RIGHT=4`.
+
+| Gesture | Direction | Phases and flags | `value1` | `value2` |
+|---|---|---|---|---|
+| `PINCH` | `NONE` | `BEGIN`: none; `UPDATE`: `COALESCIBLE`; `END`/`CANCEL`: `FINAL` | Incremental scale ratio; `1.0` means no change and the value must be positive | Signed scale velocity in ratio units per second; positive means spreading |
+| `ROTATE` | `NONE` | `BEGIN`: none; `UPDATE`: `COALESCIBLE`; `END`/`CANCEL`: `FINAL` | Incremental rotation in radians; clockwise is positive in screen coordinates | Signed angular velocity in radians per second |
+| `THREE_FINGER_SWIPE` | Required cardinal direction | `END` with exactly `FINAL` | Non-negative total dominant-axis distance in `vp` | Non-negative final speed in `vp/s` |
+| `FOUR_FINGER_SWIPE` | Required cardinal direction | `END` with exactly `FINAL` | Non-negative total dominant-axis distance in `vp` | Non-negative final speed in `vp/s` |
 
 #### `RELEASE_ALL`
 
 The frame has no payload. The agent releases every held button and clears all
-in-progress gesture state. It is idempotent.
+in-progress gesture state. It is idempotent and carries exactly the `FINAL`
+flag.
 
 ## Flow control and failure safety
 
 - The negotiated input rate cannot exceed 120 frames per second.
 - The default heartbeat interval is 500ms and the default idle release timeout
   is 1000ms.
-- Pointer and scroll updates may be coalesced before transmission.
+- Pointer, scroll-update, pinch-update, and rotate-update frames may be
+  coalesced before transmission.
 - Button transitions, gesture boundaries, and `RELEASE_ALL` cannot be
   coalesced.
 - Sequence starts at zero for every authenticated session and increments once

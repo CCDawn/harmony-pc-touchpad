@@ -89,3 +89,84 @@ test('non-zero reserved payload bytes are rejected', () => {
     /Reserved payload bytes must be zero/,
   );
 });
+
+test('release and end boundaries cannot be marked as coalescible', () => {
+  assert.throws(
+    () => encodeFrame({
+      version: 1,
+      type: 'RELEASE_ALL',
+      flags: [],
+      sequence: 1,
+      timestampUs: '1',
+      payload: {},
+    }),
+    /RELEASE_ALL requires exactly the FINAL flag/,
+  );
+
+  assert.throws(
+    () => encodeFrame({
+      version: 1,
+      type: 'SCROLL',
+      flags: ['COALESCIBLE'],
+      sequence: 2,
+      timestampUs: '2',
+      payload: {
+        dx: 0,
+        dy: 0,
+        phase: 'END',
+      },
+    }),
+    /SCROLL END requires exactly the FINAL flag/,
+  );
+
+  const malformedNetworkFrame = encodeFrame({
+    version: 1,
+    type: 'RELEASE_ALL',
+    flags: ['FINAL'],
+    sequence: 3,
+    timestampUs: '3',
+    payload: {},
+  });
+  malformedNetworkFrame.writeUInt16LE(0, 2);
+
+  assert.throws(
+    () => decodeFrame(malformedNetworkFrame),
+    /RELEASE_ALL requires exactly the FINAL flag/,
+  );
+});
+
+test('gesture direction and numeric units obey their semantic contract', () => {
+  assert.throws(
+    () => encodeFrame({
+      version: 1,
+      type: 'GESTURE',
+      flags: ['COALESCIBLE'],
+      sequence: 3,
+      timestampUs: '3',
+      payload: {
+        gesture: 'PINCH',
+        phase: 'UPDATE',
+        direction: 'UP',
+        value1: 1.1,
+        value2: 0.2,
+      },
+    }),
+    /PINCH direction must be NONE/,
+  );
+
+  assert.throws(
+    () => encodeFrame({
+      version: 1,
+      type: 'POINTER_DELTA',
+      flags: ['COALESCIBLE'],
+      sequence: 4,
+      timestampUs: '4',
+      payload: {
+        dx: 1,
+        dy: 1,
+        velocity: -1,
+      },
+    }),
+    /POINTER_DELTA velocity must be non-negative/,
+  );
+});

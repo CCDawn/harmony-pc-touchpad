@@ -123,6 +123,86 @@ function decodeFlags(flags) {
     .map(([name]) => name);
 }
 
+function requireExactFlags(frame, expected, label) {
+  const actual = frame.flags ?? [];
+  const matches = actual.length === expected.length
+    && expected.every((flag) => actual.includes(flag));
+
+  if (matches) {
+    return;
+  }
+
+  if (expected.length === 0) {
+    throw new RangeError(`${label} requires no flags`);
+  }
+
+  throw new RangeError(
+    `${label} requires exactly the ${expected.join(' and ')} flag${expected.length === 1 ? '' : 's'}`,
+  );
+}
+
+function validatePhasedFlags(frame, label) {
+  switch (frame.payload.phase) {
+    case 'BEGIN':
+      requireExactFlags(frame, [], `${label} BEGIN`);
+      break;
+    case 'UPDATE':
+      requireExactFlags(frame, ['COALESCIBLE'], `${label} UPDATE`);
+      break;
+    case 'END':
+    case 'CANCEL':
+      requireExactFlags(frame, ['FINAL'], `${label} ${frame.payload.phase}`);
+      break;
+    default:
+      throw new RangeError(`Unknown phase: ${String(frame.payload.phase)}`);
+  }
+}
+
+function validateFrameSemantics(frame) {
+  switch (frame.type) {
+    case 'POINTER_DELTA':
+      requireExactFlags(frame, ['COALESCIBLE'], 'POINTER_DELTA');
+      if (frame.payload.velocity < 0) {
+        throw new RangeError('POINTER_DELTA velocity must be non-negative');
+      }
+      break;
+    case 'BUTTON':
+      requireExactFlags(frame, [], 'BUTTON');
+      break;
+    case 'SCROLL':
+      validatePhasedFlags(frame, 'SCROLL');
+      break;
+    case 'GESTURE':
+      if (frame.payload.gesture === 'PINCH' || frame.payload.gesture === 'ROTATE') {
+        validatePhasedFlags(frame, `GESTURE ${frame.payload.gesture}`);
+        if (frame.payload.direction !== 'NONE') {
+          throw new RangeError(`${frame.payload.gesture} direction must be NONE`);
+        }
+        if (frame.payload.gesture === 'PINCH' && frame.payload.value1 <= 0) {
+          throw new RangeError('PINCH value1 scale ratio must be greater than zero');
+        }
+        break;
+      }
+
+      requireExactFlags(frame, ['FINAL'], `GESTURE ${frame.payload.gesture}`);
+      if (frame.payload.phase !== 'END') {
+        throw new RangeError(`${frame.payload.gesture} only supports the END phase`);
+      }
+      if (frame.payload.direction === 'NONE') {
+        throw new RangeError(`${frame.payload.gesture} requires a swipe direction`);
+      }
+      if (frame.payload.value1 < 0 || frame.payload.value2 < 0) {
+        throw new RangeError(`${frame.payload.gesture} distance and speed must be non-negative`);
+      }
+      break;
+    case 'RELEASE_ALL':
+      requireExactFlags(frame, ['FINAL'], 'RELEASE_ALL');
+      break;
+    default:
+      throw new RangeError(`Unknown frame type: ${String(frame.type)}`);
+  }
+}
+
 function assertReservedZero(buffer, offset, length) {
   for (let index = offset; index < offset + length; index += 1) {
     if (buffer[index] !== 0) {
@@ -221,6 +301,10 @@ export function encodeFrame(frame) {
   const sequence = requireUnsigned(frame.sequence, 0xffffffff, 'sequence');
   const timestamp = requireTimestamp(frame.timestampUs);
   const payload = encodePayload(frame.type, frame.payload);
+  validateFrameSemantics({
+    ...frame,
+    flags: frame.flags ?? [],
+  });
   const buffer = Buffer.alloc(HEADER_BYTES + payload.length);
 
   buffer.writeUInt8(PROTOCOL_MAJOR, 0);
@@ -259,7 +343,7 @@ export function decodeFrame(input) {
   }
 
   const payloadBuffer = buffer.subarray(HEADER_BYTES);
-  return {
+  const frame = {
     version,
     type,
     flags: decodeFlags(buffer.readUInt16LE(2)),
@@ -267,4 +351,6 @@ export function decodeFrame(input) {
     timestampUs: buffer.readBigUInt64LE(8).toString(),
     payload: decodePayload(type, payloadBuffer),
   };
+  validateFrameSemantics(frame);
+  return frame;
 }

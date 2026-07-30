@@ -90,6 +90,46 @@
         "payload": {}
       },
       "hex": "010502002e00000019cd5b0700000000"
+    },
+    {
+      "name": "pinch update carries an incremental scale ratio",
+      "frame": {
+        "version": 1,
+        "type": "GESTURE",
+        "flags": [
+          "COALESCIBLE"
+        ],
+        "sequence": 47,
+        "timestampUs": "123456794",
+        "payload": {
+          "gesture": "PINCH",
+          "phase": "UPDATE",
+          "direction": "NONE",
+          "value1": 1.125,
+          "value2": 0.5
+        }
+      },
+      "hex": "010401002f0000001acd5b0700000000010200000000903f0000003f"
+    },
+    {
+      "name": "rotate end carries signed radians and angular velocity",
+      "frame": {
+        "version": 1,
+        "type": "GESTURE",
+        "flags": [
+          "FINAL"
+        ],
+        "sequence": 48,
+        "timestampUs": "123456795",
+        "payload": {
+          "gesture": "ROTATE",
+          "phase": "END",
+          "direction": "NONE",
+          "value1": -0.25,
+          "value2": -1.5
+        }
+      },
+      "hex": "01040200300000001bcd5b070000000002030000000080be0000c0bf"
     }
   ]
 }
