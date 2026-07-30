@@ -139,7 +139,9 @@ than enabling a partially protected listener:
 
 The Windows TLS identity is stable across restarts. Its private-key PFX is
 encrypted with DPAPI `CurrentUser`; a corrupt, mismatched, or expired identity
-fails startup instead of silently rotating the pinned certificate.
+fails startup instead of silently rotating the pinned certificate. At runtime,
+the certificate is imported into the current user's key set so Windows SChannel
+can use it for Kestrel TLS; the persisted PFX remains DPAPI-protected.
 
 ## Cross-runtime vectors
 

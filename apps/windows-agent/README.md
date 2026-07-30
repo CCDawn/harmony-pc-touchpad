@@ -36,8 +36,9 @@ The tray menu can copy a two-minute pairing JSON payload. Its
 `<agent-id>.local` endpoint is intentionally aligned with the future mDNS
 advertisement, so automatic hostname discovery/resolution is not complete
 until the mDNS increment lands. Semantic gestures are still rejected
-explicitly at the Windows sink; they will be added through a separate
-allowlisted action mapper. No arbitrary keyboard input is accepted.
+explicitly at the Windows sink and are not advertised during capability
+negotiation; they will be added through a separate allowlisted action mapper.
+No arbitrary keyboard input is accepted.
 
 ## Projects
 
@@ -65,4 +66,6 @@ The framework-dependent publish requires the .NET 10 Desktop and ASP.NET Core
 runtimes on the target PC. Packaging and signing are intentionally deferred.
 Launching the development build creates or loads the DPAPI-protected identity
 under `%LOCALAPPDATA%\HarmonyPcTouchpad` and opens port `47431` only when at
-least one allowed private address is available.
+least one allowed private address is available. The process imports the TLS
+certificate into the current user's key set because Windows SChannel cannot
+serve TLS from an ephemeral private key.

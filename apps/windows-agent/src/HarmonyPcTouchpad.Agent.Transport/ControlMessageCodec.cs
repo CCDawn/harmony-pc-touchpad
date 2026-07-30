@@ -5,6 +5,10 @@ using HarmonyPcTouchpad.Agent.Security;
 
 namespace HarmonyPcTouchpad.Agent.Transport;
 
+internal sealed record ClientHello(
+    string DeviceId,
+    IReadOnlyList<string> Capabilities);
+
 internal static class ControlMessageCodec
 {
     private static readonly JsonDocumentOptions DocumentOptions = new()
@@ -14,7 +18,7 @@ internal static class ControlMessageCodec
         MaxDepth = 8
     };
 
-    public static string ReadHello(string json)
+    public static ClientHello ReadHello(string json)
     {
         using JsonDocument document = Parse(json);
         JsonElement root = document.RootElement;
@@ -29,6 +33,7 @@ internal static class ControlMessageCodec
         _ = RequireString(payload, "deviceName", 128);
         JsonElement capabilities = RequireArray(payload, "capabilities");
         var seen = new HashSet<string>(StringComparer.Ordinal);
+        var requestedCapabilities = new List<string>();
         foreach (JsonElement capability in capabilities.EnumerateArray())
         {
             if (capability.ValueKind != JsonValueKind.String ||
@@ -37,9 +42,11 @@ internal static class ControlMessageCodec
             {
                 throw Violation("HELLO capabilities are invalid.");
             }
+
+            requestedCapabilities.Add(capability.GetString()!);
         }
 
-        return deviceId;
+        return new(deviceId, requestedCapabilities);
     }
 
     public static void RequireControlRequest(string json, string sessionId)
@@ -83,7 +90,8 @@ internal static class ControlMessageCodec
     public static string CreateHelloAck(
         string sessionId,
         string messageId,
-        string sentAtUs) =>
+        string sentAtUs,
+        IReadOnlyList<string> capabilities) =>
         JsonSerializer.Serialize(new
         {
             protocol = new { major = 1, minor = 0 },
@@ -96,7 +104,7 @@ internal static class ControlMessageCodec
                 heartbeatMs = (int)TransportPolicy.HeartbeatInterval.TotalMilliseconds,
                 idleReleaseMs = (int)TransportPolicy.IdleReleaseTimeout.TotalMilliseconds,
                 maxInputRateHz = TransportPolicy.MaxInputRateHz,
-                capabilities = new[] { "pointer-delta", "scroll-v1", "gesture-v1" }
+                capabilities
             }
         });
 
@@ -179,7 +187,8 @@ internal static class ControlMessageCodec
             majorValue != 1 ||
             !protocol.TryGetProperty("minor", out JsonElement minor) ||
             minor.ValueKind != JsonValueKind.Number ||
-            !minor.TryGetUInt16(out _))
+            !minor.TryGetUInt16(out ushort minorValue) ||
+            minorValue != 0)
         {
             throw Violation("Control protocol version is invalid.");
         }

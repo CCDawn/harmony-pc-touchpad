@@ -8,6 +8,8 @@ namespace HarmonyPcTouchpad.Agent.Transport;
 public sealed class InputConnectionProcessor
 {
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
+    private static readonly string[] ImplementedCapabilities =
+        ["pointer-delta", "scroll-v1"];
 
     private readonly TimeProvider _clock;
     private readonly Func<string> _sessionIdFactory;
@@ -42,12 +44,21 @@ public sealed class InputConnectionProcessor
         {
             TransportMessage helloMessage =
                 await ReceiveAsync(connection, cancellationToken).ConfigureAwait(false);
-            string helloDeviceId =
+            ClientHello hello =
                 ControlMessageCodec.ReadHello(RequireText(helloMessage));
-            if (helloDeviceId != authenticatedDeviceId)
+            if (hello.DeviceId != authenticatedDeviceId)
             {
                 throw new ProtocolViolationException(
                     "HELLO device ID does not match the authenticated device.");
+            }
+
+            string[] negotiatedCapabilities = ImplementedCapabilities
+                .Where(hello.Capabilities.Contains)
+                .ToArray();
+            if (negotiatedCapabilities.Length == 0)
+            {
+                throw new ProtocolViolationException(
+                    "HELLO did not offer any implemented input capability.");
             }
 
             string sessionId = _sessionIdFactory();
@@ -55,7 +66,8 @@ public sealed class InputConnectionProcessor
                     ControlMessageCodec.CreateHelloAck(
                         sessionId,
                         _messageIdFactory(),
-                        ReadMonotonicMicroseconds()),
+                        ReadMonotonicMicroseconds(),
+                        negotiatedCapabilities),
                     cancellationToken)
                 .ConfigureAwait(false);
 
@@ -94,7 +106,9 @@ public sealed class InputConnectionProcessor
                             "The negotiated input rate was exceeded.");
                     }
 
-                    session.Process(InputFrameDecoder.Decode(message.Payload.Span));
+                    InputFrame frame = InputFrameDecoder.Decode(message.Payload.Span);
+                    RequireNegotiatedCapability(frame, negotiatedCapabilities);
+                    session.Process(frame);
                     continue;
                 }
 
@@ -196,6 +210,25 @@ public sealed class InputConnectionProcessor
         }
 
         return ReadText(message.Payload);
+    }
+
+    private static void RequireNegotiatedCapability(
+        InputFrame frame,
+        IReadOnlyList<string> negotiatedCapabilities)
+    {
+        string? requiredCapability = frame switch
+        {
+            PointerDeltaFrame => "pointer-delta",
+            ScrollFrame => "scroll-v1",
+            GestureFrame => "gesture-v1",
+            _ => null
+        };
+        if (requiredCapability is not null &&
+            !negotiatedCapabilities.Contains(requiredCapability))
+        {
+            throw new ProtocolViolationException(
+                $"{frame.Type} was not negotiated for this input session.");
+        }
     }
 
     private static string ReadText(ReadOnlyMemory<byte> payload)

@@ -30,30 +30,31 @@ internal sealed class WebSocketTransportConnection(WebSocket webSocket) :
         byte[] buffer = ArrayPool<byte>.Shared.Rent(maxMessageBytes + 1);
         try
         {
-            using var idleCancellation =
-                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            idleCancellation.CancelAfter(idleTimeout);
-
             int length = 0;
             WebSocketMessageType? messageType = null;
+            Task idleDelay = Task.Delay(idleTimeout);
             while (true)
             {
-                ValueWebSocketReceiveResult result;
-                try
+                Task<ValueWebSocketReceiveResult> pendingReceive =
+                    _webSocket.ReceiveAsync(
+                            buffer.AsMemory(
+                                length,
+                                maxMessageBytes + 1 - length),
+                            cancellationToken)
+                        .AsTask();
+                if (await Task.WhenAny(pendingReceive, idleDelay)
+                        .ConfigureAwait(false) == idleDelay)
                 {
-                    result = await _webSocket.ReceiveAsync(
-                            buffer.AsMemory(length, maxMessageBytes + 1 - length),
-                            idleCancellation.Token)
+                    await CloseAfterIdleTimeoutAsync(
+                            pendingReceive,
+                            cancellationToken)
                         .ConfigureAwait(false);
-                }
-                catch (OperationCanceledException error)
-                    when (!cancellationToken.IsCancellationRequested)
-                {
                     throw new TimeoutException(
-                        "The input connection exceeded the idle-release timeout.",
-                        error);
+                        "The input connection exceeded the idle-release timeout.");
                 }
 
+                ValueWebSocketReceiveResult result =
+                    await pendingReceive.ConfigureAwait(false);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
                     return TransportMessage.Closed();
@@ -93,6 +94,46 @@ internal sealed class WebSocketTransportConnection(WebSocket webSocket) :
         finally
         {
             ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+        }
+    }
+
+    private async ValueTask CloseAfterIdleTimeoutAsync(
+        Task<ValueWebSocketReceiveResult> pendingReceive,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (_webSocket.State is WebSocketState.Open)
+            {
+                await _webSocket.CloseOutputAsync(
+                        WebSocketCloseStatus.PolicyViolation,
+                        TransportCloseReason.PolicyViolation.ToString(),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            using var closeCancellation =
+                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            closeCancellation.CancelAfter(TransportPolicy.CloseHandshakeTimeout);
+            ValueWebSocketReceiveResult closeResult =
+                await pendingReceive.WaitAsync(closeCancellation.Token)
+                    .ConfigureAwait(false);
+            if (closeResult.MessageType != WebSocketMessageType.Close)
+            {
+                _webSocket.Abort();
+            }
+        }
+        catch
+        {
+            _webSocket.Abort();
+            try
+            {
+                await pendingReceive.ConfigureAwait(false);
+            }
+            catch
+            {
+                // Abort is the final fail-closed outcome for the pending receive.
+            }
         }
     }
 
@@ -136,10 +177,13 @@ internal sealed class WebSocketTransportConnection(WebSocket webSocket) :
                 WebSocketCloseStatus.EndpointUnavailable,
             _ => WebSocketCloseStatus.InternalServerError
         };
-        await _webSocket.CloseOutputAsync(
+        using var closeCancellation =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        closeCancellation.CancelAfter(TransportPolicy.CloseHandshakeTimeout);
+        await _webSocket.CloseAsync(
                 status,
                 reason.ToString(),
-                cancellationToken)
+                closeCancellation.Token)
             .ConfigureAwait(false);
     }
 }

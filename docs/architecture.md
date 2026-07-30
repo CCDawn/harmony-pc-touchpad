@@ -27,7 +27,7 @@
 - JSON control messages for negotiation and session lifecycle.
 - One little-endian binary event per WebSocket binary message.
 - Shared golden vectors consumed by the reference validator, ArkTS, and C#.
-- Major-version rejection and minor-version capability negotiation.
+- Exact v1.0 acceptance plus capability-intersection negotiation.
 
 ## Trust model
 

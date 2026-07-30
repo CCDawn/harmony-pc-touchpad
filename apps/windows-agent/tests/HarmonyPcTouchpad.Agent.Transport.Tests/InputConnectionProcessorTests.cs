@@ -117,10 +117,91 @@ public sealed class InputConnectionProcessorTests
         Assert.Equal("PONG", connection.SentKinds.Last());
     }
 
-    private static string Hello(string deviceId) =>
+    [Fact]
+    public async Task HelloAckContainsOnlyCommonImplementedCapabilities()
+    {
+        var connection = new ScriptedConnection(
+            TransportMessage.Text(Hello(
+                "phone-001",
+                ["pointer-delta", "gesture-v1", "future-capability"])),
+            TransportMessage.Text(ControlRequest("session-test")),
+            TransportMessage.Closed());
+        var processor = new InputConnectionProcessor(
+            TimeProvider.System,
+            () => "session-test",
+            () => "message-test");
+
+        await processor.RunAsync(
+            "phone-001",
+            connection,
+            new InputSession(new RecordingInputSink()),
+            CancellationToken.None);
+
+        using JsonDocument helloAck = JsonDocument.Parse(connection.SentTexts[0]);
+        string[] capabilities = helloAck.RootElement
+            .GetProperty("payload")
+            .GetProperty("capabilities")
+            .EnumerateArray()
+            .Select(value => value.GetString()!)
+            .ToArray();
+        Assert.Equal(["pointer-delta"], capabilities);
+    }
+
+    [Fact]
+    public async Task UnsupportedMinorVersionIsRejectedBeforeControlIsGranted()
+    {
+        var connection = new ScriptedConnection(
+            TransportMessage.Text(Hello(
+                "phone-001",
+                ["pointer-delta"],
+                minorVersion: 1)));
+        var processor = new InputConnectionProcessor(
+            TimeProvider.System,
+            () => "session-test",
+            () => "message-test");
+
+        await Assert.ThrowsAsync<ProtocolViolationException>(() =>
+            processor.RunAsync(
+                "phone-001",
+                connection,
+                new InputSession(new RecordingInputSink()),
+                CancellationToken.None));
+
+        Assert.Empty(connection.SentTexts);
+        Assert.Equal(TransportCloseReason.ProtocolViolation, connection.CloseReason);
+    }
+
+    [Fact]
+    public async Task BinaryFramesMustBelongToTheNegotiatedCapabilitySet()
+    {
+        var connection = new ScriptedConnection(
+            TransportMessage.Text(Hello("phone-001", ["pointer-delta"])),
+            TransportMessage.Text(ControlRequest("session-test")),
+            TransportMessage.Binary(ScrollFrame(sequence: 0)));
+        var sink = new RecordingInputSink();
+        var processor = new InputConnectionProcessor(
+            TimeProvider.System,
+            () => "session-test",
+            () => "message-test");
+
+        await Assert.ThrowsAsync<ProtocolViolationException>(() =>
+            processor.RunAsync(
+                "phone-001",
+                connection,
+                new InputSession(sink),
+                CancellationToken.None));
+
+        Assert.Equal(["ReleaseAll"], sink.Events);
+        Assert.Equal(TransportCloseReason.ProtocolViolation, connection.CloseReason);
+    }
+
+    private static string Hello(
+        string deviceId,
+        string[]? capabilities = null,
+        int minorVersion = 0) =>
         JsonSerializer.Serialize(new
         {
-            protocol = new { major = 1, minor = 0 },
+            protocol = new { major = 1, minor = minorVersion },
             kind = "HELLO",
             messageId = "hello-1",
             sessionId = (string?)null,
@@ -129,7 +210,7 @@ public sealed class InputConnectionProcessorTests
             {
                 deviceId,
                 deviceName = "Harmony Phone",
-                capabilities = new[] { "pointer-delta", "scroll-v1" }
+                capabilities = capabilities ?? ["pointer-delta", "scroll-v1"]
             }
         });
 
@@ -175,11 +256,30 @@ public sealed class InputConnectionProcessorTests
         return frame;
     }
 
+    private static byte[] ScrollFrame(uint sequence)
+    {
+        byte[] frame = new byte[28];
+        frame[0] = 1;
+        frame[1] = (byte)InputFrameType.Scroll;
+        BinaryPrimitives.WriteUInt32LittleEndian(frame.AsSpan(4), sequence);
+        BinaryPrimitives.WriteUInt64LittleEndian(frame.AsSpan(8), 1);
+        BinaryPrimitives.WriteInt32LittleEndian(
+            frame.AsSpan(16),
+            BitConverter.SingleToInt32Bits(1));
+        BinaryPrimitives.WriteInt32LittleEndian(
+            frame.AsSpan(20),
+            BitConverter.SingleToInt32Bits(1));
+        frame[24] = (byte)InputPhase.Begin;
+        return frame;
+    }
+
     private sealed class ScriptedConnection(params object[] script) : ITransportConnection
     {
         private readonly Queue<object> _script = new(script);
 
         public List<string> SentKinds { get; } = [];
+
+        public List<string> SentTexts { get; } = [];
 
         public List<(int MaxMessageBytes, TimeSpan IdleTimeout)> ReceivePolicies { get; } = [];
 
@@ -203,6 +303,7 @@ public sealed class InputConnectionProcessorTests
 
         public ValueTask SendTextAsync(string text, CancellationToken cancellationToken)
         {
+            SentTexts.Add(text);
             using JsonDocument document = JsonDocument.Parse(text);
             SentKinds.Add(document.RootElement.GetProperty("kind").GetString()!);
             return ValueTask.CompletedTask;

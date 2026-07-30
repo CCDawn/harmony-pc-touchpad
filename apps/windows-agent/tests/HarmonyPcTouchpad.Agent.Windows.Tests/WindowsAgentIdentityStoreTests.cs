@@ -1,4 +1,8 @@
 using HarmonyPcTouchpad.Agent.Security;
+using System.Net;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 
 namespace HarmonyPcTouchpad.Agent.Windows.Tests;
 
@@ -39,6 +43,45 @@ public sealed class WindowsAgentIdentityStoreTests : IDisposable
         Assert.Throws<InvalidDataException>(
             () => new WindowsAgentIdentityStore(path, new RecordingProtector())
                 .LoadOrCreate());
+    }
+
+    [Fact]
+    public async Task StoredIdentityCompletesAWindowsSchannelServerHandshake()
+    {
+        string path = Path.Combine(_directory, "identity.json");
+        using WindowsAgentIdentity identity =
+            new WindowsAgentIdentityStore(path, new RecordingProtector())
+                .LoadOrCreate();
+        string expectedFingerprint =
+            CertificateFingerprint.ComputeSpkiSha256(identity.Certificate);
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            Task server = Task.Run(async () =>
+            {
+                using TcpClient accepted = await listener.AcceptTcpClientAsync();
+                using var serverTls = new SslStream(accepted.GetStream());
+                await serverTls.AuthenticateAsServerAsync(identity.Certificate);
+            });
+
+            using var client = new TcpClient();
+            await client.ConnectAsync(IPAddress.Loopback, port);
+            using var clientTls = new SslStream(
+                client.GetStream(),
+                leaveInnerStreamOpen: false,
+                (_, certificate, _, _) =>
+                    certificate is X509Certificate2 actual &&
+                    CertificateFingerprint.ComputeSpkiSha256(actual) ==
+                        expectedFingerprint);
+            await clientTls.AuthenticateAsClientAsync(identity.HostName);
+            await server;
+        }
+        finally
+        {
+            listener.Stop();
+        }
     }
 
     public void Dispose()

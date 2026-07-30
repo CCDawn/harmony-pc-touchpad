@@ -241,7 +241,7 @@ public sealed class WindowsAgentIdentityStore
         X509CertificateLoader.LoadPkcs12(
             pfx,
             password: null,
-            X509KeyStorageFlags.EphemeralKeySet);
+            X509KeyStorageFlags.UserKeySet);
 
     private void Validate(string agentId, X509Certificate2 certificate)
     {

@@ -8,4 +8,6 @@ public static class TransportPolicy
     internal const int MaxControlRateHz = 8;
     public static readonly TimeSpan HeartbeatInterval = TimeSpan.FromMilliseconds(500);
     public static readonly TimeSpan IdleReleaseTimeout = TimeSpan.FromMilliseconds(1000);
+    internal static readonly TimeSpan CloseHandshakeTimeout =
+        TimeSpan.FromMilliseconds(1000);
 }
