@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HarmonyPcTouchpad.Agent.Core\HarmonyPcTouchpad.Agent.Core.csproj" />
+    <ProjectReference Include="..\HarmonyPcTouchpad.Agent.Security\HarmonyPcTouchpad.Agent.Security.csproj" />
+    <ProjectReference Include="..\HarmonyPcTouchpad.Agent.Transport\HarmonyPcTouchpad.Agent.Transport.csproj" />
     <ProjectReference Include="..\HarmonyPcTouchpad.Agent.Windows\HarmonyPcTouchpad.Agent.Windows.csproj" />
   </ItemGroup>
 </Project>

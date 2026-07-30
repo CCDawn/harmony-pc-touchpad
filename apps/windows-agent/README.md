@@ -1,8 +1,9 @@
-# Windows agent vertical slice
+# Windows agent
 
-This directory contains the first executable boundary of the Windows agent.
-It is deliberately offline: there is no WebSocket listener, pairing flow,
-device-secret storage, mDNS advertisement, or startup registration yet.
+This directory contains the console-free Windows tray agent and its
+authenticated local-network transport. It is still a development build:
+mDNS advertisement, startup registration, installer/signing, and the
+HarmonyOS client are not present yet.
 
 ## Implemented
 
@@ -19,18 +20,33 @@ device-secret storage, mDNS advertisement, or startup registration yet.
 - a canonical HMAC-SHA256 upgrade authenticator with clock-skew and replay
   protection; and
 - per-device secret persistence encrypted with Windows DPAPI `CurrentUser`.
+- a stable self-signed TLS identity whose PFX is encrypted with DPAPI
+  `CurrentUser`;
+- Kestrel WSS bound only to discovered RFC1918 or IPv6 ULA interface
+  addresses on port `47431`;
+- `/pair` and HMAC-authenticated `/input` validation before WebSocket upgrade,
+  with compression disabled;
+- one active controller, a 409 rejection for a busy lease, a 4096-byte
+  message cap, a sliding 120-frame/s input limit, and a separate bounded
+  heartbeat-control rate; and
+- 500ms heartbeat negotiation plus fail-closed release after 1000ms without
+  traffic.
 
-The security components are not connected to a listener yet, so this increment
-still opens no network port. Semantic gestures are currently rejected
-explicitly at the Windows sink. They
-will be added through a separate allowlisted action mapper; no arbitrary
-keyboard input is accepted.
+The tray menu can copy a two-minute pairing JSON payload. Its
+`<agent-id>.local` endpoint is intentionally aligned with the future mDNS
+advertisement, so automatic hostname discovery/resolution is not complete
+until the mDNS increment lands. Semantic gestures are still rejected
+explicitly at the Windows sink and are not advertised during capability
+negotiation; they will be added through a separate allowlisted action mapper.
+No arbitrary keyboard input is accepted.
 
 ## Projects
 
 - `HarmonyPcTouchpad.Agent.Protocol`: binary models, decoding, and validation.
 - `HarmonyPcTouchpad.Agent.Security`: pairing, QR, certificate fingerprint,
   signing, and replay-protection contract.
+- `HarmonyPcTouchpad.Agent.Transport`: Kestrel/WSS endpoints, upgrade gates,
+  control handshake, rate/size limits, heartbeat timeout, and controller lease.
 - `HarmonyPcTouchpad.Agent.Core`: transport-independent input-session safety.
 - `HarmonyPcTouchpad.Agent.Windows`: `IInputSink` and Win32 `SendInput` adapter.
 - `HarmonyPcTouchpad.Agent.App`: console-free tray-process shell.
@@ -46,10 +62,10 @@ dotnet publish `
   --self-contained false
 ```
 
-The framework-dependent publish requires the .NET 10 Desktop Runtime on the
-target PC. Packaging and signing are intentionally deferred until the
-authenticated transport is present.
-
-Do not expose a listener around `InputSession` until the implemented
-authentication core, single-controller ownership, heartbeat timeout,
-message-size/rate limits, and private-network binding are wired together.
+The framework-dependent publish requires the .NET 10 Desktop and ASP.NET Core
+runtimes on the target PC. Packaging and signing are intentionally deferred.
+Launching the development build creates or loads the DPAPI-protected identity
+under `%LOCALAPPDATA%\HarmonyPcTouchpad` and opens port `47431` only when at
+least one allowed private address is available. The process imports the TLS
+certificate into the current user's key set because Windows SChannel cannot
+serve TLS from an ephemeral private key.

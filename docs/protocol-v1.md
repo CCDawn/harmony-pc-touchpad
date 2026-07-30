@@ -24,6 +24,12 @@ remote-shell commands.
   display name, port, and whether pairing is currently allowed.
 - Only one authenticated device can own the control lease.
 
+After the authenticated `/input` upgrade, the client sends `HELLO`, receives
+`HELLO_ACK`, sends `CONTROL_REQUEST`, and receives `CONTROL_GRANTED` before any
+binary input frame. The `HELLO` device identifier must match the authenticated
+upgrade identity. While controlling, text messages are limited to `PING` and
+`PONG`; any other control kind is a protocol violation.
+
 The exact QR, pairing, certificate pinning, and HMAC upgrade contract is frozen
 in [Security contract v1](security-v1.md). It is not part of the binary input
 frame format.
@@ -31,8 +37,11 @@ frame format.
 ## Versioning
 
 - An unsupported major version is rejected before payload processing.
-- A higher minor version may connect only when both peers can negotiate a
-  common capability set.
+- Protocol v1 currently accepts minor version `0`; later minor versions remain
+  fail-closed until their compatibility rules are implemented.
+- `HELLO_ACK` contains only the intersection of the client's offered
+  capabilities and the agent's implemented capabilities. Binary frames outside
+  that negotiated set are protocol violations.
 - Unknown input frame types, flags, enum values, non-zero reserved bytes, or
   non-finite floating-point values are protocol violations.
 
@@ -67,6 +76,9 @@ comparison.
 | `ERROR` | Both | Bounded protocol/session error information |
 
 No control-message kind accepts keyboard keys or executable commands.
+The Windows v1 agent currently negotiates `pointer-delta` and `scroll-v1`.
+It does not advertise `gesture-v1` until the allowlisted gesture mapper is
+implemented.
 `PAIRING_ACCEPTED` is never written to logs and its socket closes immediately
 after delivery; the client reconnects to `/input` using HMAC authentication.
 
