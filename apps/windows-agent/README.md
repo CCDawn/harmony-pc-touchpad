@@ -14,15 +14,23 @@ device-secret storage, mDNS advertisement, or startup registration yet.
 - a `WinExe` tray shell, so launching the agent does not create a console
   window; and
 - isolated tests that replace the native input API and never move the test
-  machine's pointer.
+  machine's pointer;
+- two-minute, single-use pairing tickets that retain only a SHA-256 token hash;
+- a canonical HMAC-SHA256 upgrade authenticator with clock-skew and replay
+  protection; and
+- per-device secret persistence encrypted with Windows DPAPI `CurrentUser`.
 
-Semantic gestures are currently rejected explicitly at the Windows sink. They
+The security components are not connected to a listener yet, so this increment
+still opens no network port. Semantic gestures are currently rejected
+explicitly at the Windows sink. They
 will be added through a separate allowlisted action mapper; no arbitrary
 keyboard input is accepted.
 
 ## Projects
 
 - `HarmonyPcTouchpad.Agent.Protocol`: binary models, decoding, and validation.
+- `HarmonyPcTouchpad.Agent.Security`: pairing, QR, certificate fingerprint,
+  signing, and replay-protection contract.
 - `HarmonyPcTouchpad.Agent.Core`: transport-independent input-session safety.
 - `HarmonyPcTouchpad.Agent.Windows`: `IInputSink` and Win32 `SendInput` adapter.
 - `HarmonyPcTouchpad.Agent.App`: console-free tray-process shell.
@@ -42,6 +50,6 @@ The framework-dependent publish requires the .NET 10 Desktop Runtime on the
 target PC. Packaging and signing are intentionally deferred until the
 authenticated transport is present.
 
-Do not expose a listener around `InputSession` until authentication,
-single-controller ownership, heartbeat timeout, message-size/rate limits, and
-private-network binding are implemented together.
+Do not expose a listener around `InputSession` until the implemented
+authentication core, single-controller ownership, heartbeat timeout,
+message-size/rate limits, and private-network binding are wired together.

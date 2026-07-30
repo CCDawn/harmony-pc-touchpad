@@ -16,16 +16,17 @@ remote-shell commands.
 - The HarmonyOS client trusts the agent's paired certificate through
   request-level CA configuration. Certificate verification must never be
   skipped.
-- Authentication is completed during the WebSocket upgrade with a one-time
-  pairing token or persistent per-device token. Tokens are never placed in the
-  URL, mDNS record, or log output.
+- Pairing authorization uses a one-time token during the WebSocket upgrade.
+  Later `/input` upgrades use an HMAC proof derived from the persistent
+  per-device secret. Tokens and secrets are never placed in the URL, mDNS
+  record, or log output.
 - mDNS service records only advertise the protocol major version, agent ID,
   display name, port, and whether pairing is currently allowed.
 - Only one authenticated device can own the control lease.
 
-The exact QR payload and persistent-token rotation format will be frozen with
-the Windows-agent security implementation. They are not part of the input wire
-format.
+The exact QR, pairing, certificate pinning, and HMAC upgrade contract is frozen
+in [Security contract v1](security-v1.md). It is not part of the binary input
+frame format.
 
 ## Versioning
 
@@ -58,6 +59,7 @@ comparison.
 |---|---|---|
 | `HELLO` | Client → agent | Device identity and capabilities |
 | `HELLO_ACK` | Agent → client | Session, timers, rate, negotiated capabilities |
+| `PAIRING_ACCEPTED` | Agent → client | Deliver one persistent device secret over the certificate-pinned pairing socket |
 | `CONTROL_REQUEST` | Client → agent | Request the single control lease |
 | `CONTROL_GRANTED` | Agent → client | Confirm the active controller |
 | `CONTROL_DENIED` | Agent → client | Reject a lease request with a reason |
@@ -65,6 +67,8 @@ comparison.
 | `ERROR` | Both | Bounded protocol/session error information |
 
 No control-message kind accepts keyboard keys or executable commands.
+`PAIRING_ACCEPTED` is never written to logs and its socket closes immediately
+after delivery; the client reconnects to `/input` using HMAC authentication.
 
 ## Binary input frame
 

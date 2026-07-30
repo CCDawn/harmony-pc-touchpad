@@ -35,6 +35,8 @@ and internet remote control are outside the MVP.
 - Dependency-free Node.js reference validators used only to prove the wire contract
 - C# Protocol v1 decoder, fail-closed input session, and testable Win32
   `SendInput` boundary
+- Cross-runtime [Security contract v1](docs/security-v1.md), replay-safe HMAC
+  authentication core, and Windows DPAPI device-secret storage
 - Console-free Windows tray shell with no listener enabled
 
 ## Run the contract tests
@@ -66,7 +68,8 @@ network port.
 
 - [x] Freeze Protocol v1, safety rules, gesture mapping, and golden vectors
 - [x] Build the Windows agent protocol/session/`SendInput` vertical slice
-- [ ] Add authenticated WSS pairing and the single-controller transport
+- [x] Freeze QR pairing, certificate pinning, and HMAC authentication
+- [ ] Connect the security core to WSS and the single-controller transport
 - [ ] Build secure HarmonyOS pairing and one-finger control
 - [ ] Implement deterministic one- to four-finger gesture recognition
 - [ ] Package and validate the Windows/HarmonyOS beta

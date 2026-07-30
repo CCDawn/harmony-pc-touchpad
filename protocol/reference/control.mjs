@@ -1,9 +1,11 @@
 import { PROTOCOL_MAJOR } from './codec.mjs';
 
 const MAX_UINT64 = (1n << 64n) - 1n;
+const identifierPattern = /^[A-Za-z0-9._-]{1,128}$/;
 const supportedKinds = new Set([
   'HELLO',
   'HELLO_ACK',
+  'PAIRING_ACCEPTED',
   'CONTROL_REQUEST',
   'CONTROL_GRANTED',
   'CONTROL_DENIED',
@@ -24,6 +26,24 @@ function requireString(value, field, maxLength = 128) {
     throw new TypeError(`${field} must be a non-empty string`);
   }
   return value;
+}
+
+function requireIdentifier(value, field) {
+  requireString(value, field);
+  if (!identifierPattern.test(value)) {
+    throw new TypeError(`${field} is invalid`);
+  }
+}
+
+function requireBase64UrlBytes(value, bytes, field) {
+  requireString(value, field, 64);
+  if (!/^[A-Za-z0-9_-]+$/.test(value)) {
+    throw new TypeError(`${field} must be unpadded base64url`);
+  }
+  const decoded = Buffer.from(value, 'base64url');
+  if (decoded.length !== bytes || decoded.toString('base64url') !== value) {
+    throw new RangeError(`${field} must contain exactly ${bytes} bytes`);
+  }
 }
 
 function requireUnsigned(value, max, field) {
@@ -67,7 +87,7 @@ function validatePayload(message) {
       if (message.sessionId !== null) {
         throw new RangeError('HELLO sessionId must be null');
       }
-      requireString(payload.deviceId, 'payload.deviceId');
+      requireIdentifier(payload.deviceId, 'payload.deviceId');
       requireString(payload.deviceName, 'payload.deviceName');
       requireStringArray(payload.capabilities, 'payload.capabilities');
       break;
@@ -87,12 +107,23 @@ function validatePayload(message) {
       }
       requireStringArray(payload.capabilities, 'payload.capabilities');
       break;
+    case 'PAIRING_ACCEPTED':
+      if (message.sessionId !== null) {
+        throw new RangeError('PAIRING_ACCEPTED sessionId must be null');
+      }
+      requireIdentifier(payload.deviceId, 'payload.deviceId');
+      requireUnsigned(payload.secretVersion, 1, 'payload.secretVersion');
+      if (payload.secretVersion !== 1) {
+        throw new RangeError('payload.secretVersion must be 1');
+      }
+      requireBase64UrlBytes(payload.deviceSecret, 32, 'payload.deviceSecret');
+      break;
     case 'CONTROL_REQUEST':
       requireSession(message);
       break;
     case 'CONTROL_GRANTED':
       requireSession(message);
-      requireString(payload.controllerDeviceId, 'payload.controllerDeviceId');
+      requireIdentifier(payload.controllerDeviceId, 'payload.controllerDeviceId');
       break;
     case 'CONTROL_DENIED':
       requireString(payload.reason, 'payload.reason');

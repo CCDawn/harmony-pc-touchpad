@@ -25,6 +25,10 @@ default branch and the active development branch only.
 - Unpaired devices cannot obtain a control session.
 - Server certificate validation must not be disabled.
 - Pairing tokens and persistent device secrets never appear in logs or mDNS.
+- Pairing tokens expire after two minutes, are single-use, and are retained
+  only as SHA-256 hashes.
+- Persistent device secrets are stored with Windows DPAPI or HarmonyOS HUKS;
+  `/input` authentication uses bounded-time, replay-protected HMAC proofs.
 - The network protocol cannot carry arbitrary keyboard commands.
 - Disconnect, timeout, app backgrounding, and process shutdown release all
   held input state.

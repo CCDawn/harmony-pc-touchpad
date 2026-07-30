@@ -50,6 +50,24 @@
       }
     },
     {
+      "name": "pairing accepted delivers one device secret over the pinned WSS channel",
+      "message": {
+        "protocol": {
+          "major": 1,
+          "minor": 0
+        },
+        "kind": "PAIRING_ACCEPTED",
+        "messageId": "msg-pairing-accepted-001",
+        "sessionId": null,
+        "sentAtUs": "123456801",
+        "payload": {
+          "deviceId": "harmony-phone-001",
+          "secretVersion": 1,
+          "deviceSecret": "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA"
+        }
+      }
+    },
+    {
       "name": "heartbeat carries no input command",
       "message": {
         "protocol": {
@@ -159,6 +177,25 @@
           "idleReleaseMs": 1000,
           "maxInputRateHz": 120,
           "capabilities": []
+        }
+      }
+    },
+    {
+      "name": "pairing cannot issue a short persistent secret",
+      "error": "payload.deviceSecret must contain exactly 32 bytes",
+      "message": {
+        "protocol": {
+          "major": 1,
+          "minor": 0
+        },
+        "kind": "PAIRING_ACCEPTED",
+        "messageId": "msg-pairing-accepted-002",
+        "sessionId": null,
+        "sentAtUs": "123456801",
+        "payload": {
+          "deviceId": "harmony-phone-001",
+          "secretVersion": 1,
+          "deviceSecret": "c2hvcnQ"
         }
       }
     }
