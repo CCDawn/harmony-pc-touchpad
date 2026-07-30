@@ -6,6 +6,9 @@ Microsoft.NET.Test.Sdk, xunit.runner.visualstudio, and coverlet.collector under
 their respective licenses; they are development-only dependencies and are not
 shipped with the tray application.
 
+The Windows runtime project uses Microsoft's
+`System.Security.Cryptography.ProtectedData` package to access Windows DPAPI.
+
 The project architecture and gesture behavior were informed by public
 documentation and open-source research, including the MIT-licensed
 [Mousedroid](https://github.com/darusc/Mousedroid) project. Its source has not

@@ -11,11 +11,15 @@
       "harmonypctouchpad.agent.protocol": {
         "type": "Project"
       },
+      "harmonypctouchpad.agent.security": {
+        "type": "Project"
+      },
       "harmonypctouchpad.agent.windows": {
         "type": "Project",
         "dependencies": {
           "HarmonyPcTouchpad.Agent.Core": "[1.0.0, )",
-          "HarmonyPcTouchpad.Agent.Protocol": "[1.0.0, )"
+          "HarmonyPcTouchpad.Agent.Protocol": "[1.0.0, )",
+          "HarmonyPcTouchpad.Agent.Security": "[1.0.0, )"
         }
       }
     }

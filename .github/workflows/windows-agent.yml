@@ -8,13 +8,13 @@ on:
       - ".github/workflows/windows-agent.yml"
       - "apps/windows-agent/**"
       - "global.json"
-      - "protocol/v1/test-vectors/input-frames.json"
+      - "protocol/v1/test-vectors/**"
   pull_request:
     paths:
       - ".github/workflows/windows-agent.yml"
       - "apps/windows-agent/**"
       - "global.json"
-      - "protocol/v1/test-vectors/input-frames.json"
+      - "protocol/v1/test-vectors/**"
 
 permissions:
   contents: read

@@ -1,0 +1,28 @@
+{
+  "protocol": {
+    "major": 1,
+    "minor": 0
+  },
+  "pairingQr": {
+    "payload": {
+      "v": 1,
+      "agentId": "agent-001",
+      "endpoint": "wss://touchpad.local:47431/pair",
+      "spkiSha256": "paWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaU",
+      "pairingToken": "WlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlo",
+      "expiresAtUnixMs": 1775000000000
+    },
+    "json": "{\"v\":1,\"agentId\":\"agent-001\",\"endpoint\":\"wss://touchpad.local:47431/pair\",\"spkiSha256\":\"paWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaU\",\"pairingToken\":\"WlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlo\",\"expiresAtUnixMs\":1775000000000}"
+  },
+  "authRequest": {
+    "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "method": "GET",
+    "path": "/input",
+    "agentId": "agent-001",
+    "deviceId": "phone-001",
+    "timestampUnixMs": 1775000000000,
+    "nonce": "ABEiM0RVZneImaq7zN3u_w",
+    "canonical": "HPT1\nGET\n/input\nagent-001\nphone-001\n1775000000000\nABEiM0RVZneImaq7zN3u_w",
+    "signature": "tCwsBJr3zU-KQGCUNjN-tF0SfeXnxNo1Mvi0RMK01eE"
+  }
+}

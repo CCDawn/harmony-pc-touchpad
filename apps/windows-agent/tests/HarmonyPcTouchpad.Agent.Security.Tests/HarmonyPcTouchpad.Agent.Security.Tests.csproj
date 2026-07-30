@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
@@ -20,12 +19,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\HarmonyPcTouchpad.Agent.Protocol\HarmonyPcTouchpad.Agent.Protocol.csproj" />
-    <ProjectReference Include="..\..\src\HarmonyPcTouchpad.Agent.Security\HarmonyPcTouchpad.Agent.Security.csproj" />
-    <ProjectReference Include="..\..\src\HarmonyPcTouchpad.Agent.Windows\HarmonyPcTouchpad.Agent.Windows.csproj" />
+    <Using Include="Xunit" />
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Xunit" />
+    <ProjectReference Include="..\..\src\HarmonyPcTouchpad.Agent.Security\HarmonyPcTouchpad.Agent.Security.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\..\..\protocol\v1\test-vectors\security-auth.json"
+          Link="Fixtures\security-auth.json"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
