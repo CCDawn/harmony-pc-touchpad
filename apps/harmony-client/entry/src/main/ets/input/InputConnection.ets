@@ -21,7 +21,7 @@ import {
 
 const responseTimeoutMs: number = 10000;
 const inputPath: string = '/input';
-const minimumPointerIntervalMs: number = 8;
+const minimumPointerIntervalMs: number = 10;
 const minimumScrollIntervalMs: number = 10;
 
 interface ProtocolVersionJson {
@@ -422,7 +422,7 @@ export class InputConnection {
       systemDateTime.TimeType.STARTUP,
       false
     );
-    if (nowMs - this.lastPointerAtMs < minimumPointerIntervalMs) {
+    if (nowMs - this.lastPointerAtMs < this.pointerIntervalMs()) {
       return;
     }
     this.lastPointerAtMs = nowMs;
@@ -650,6 +650,13 @@ export class InputConnection {
   private scrollIntervalMs(): number {
     return Math.max(
       minimumScrollIntervalMs,
+      Math.ceil(1000 / this.maxInputRateHz)
+    );
+  }
+
+  private pointerIntervalMs(): number {
+    return Math.max(
+      minimumPointerIntervalMs,
       Math.ceil(1000 / this.maxInputRateHz)
     );
   }
