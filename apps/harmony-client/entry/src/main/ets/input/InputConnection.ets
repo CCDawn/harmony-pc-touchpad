@@ -453,9 +453,7 @@ export class InputConnection {
     if (!this.isConnected) {
       return;
     }
-    if (!isDown) {
-      this.flushPendingPointer();
-    }
+    this.flushPendingPointer();
     this.enqueue(encodeButtonFrame(
       this.nextSequence(),
       monotonicMicroseconds(),

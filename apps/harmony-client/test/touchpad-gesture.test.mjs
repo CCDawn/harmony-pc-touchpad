@@ -63,12 +63,19 @@ test('double tap then hold transitions into bounded left-button drag', () => {
     [point(2, 112, 201)],
     3220
   );
-  assert.equal(dragActions[0].kind, 'button');
   assert.deepEqual(
     dragActions[0],
+    {
+      kind: 'move',
+      dx: 13.5,
+      dy: 0,
+      velocity: 675
+    }
+  );
+  assert.deepEqual(
+    dragActions[1],
     { kind: 'button', button: 'left', isDown: true }
   );
-  assert.equal(dragActions[1].kind, 'move');
   assert.deepEqual(
     gesture.handleTouches('up', [], [point(2, 112, 201)], 3300),
     [{ kind: 'button', button: 'left', isDown: false }]
@@ -126,12 +133,12 @@ test('drag sensitivity widens the double-tap window and activation distance', ()
   gesture.handleTouches('down', [second], [second], 3540);
   const actions = gesture.handleTouches(
     'move',
-    [point(2, 135, 200)],
-    [point(2, 135, 200)],
+    [point(2, 142, 200)],
+    [point(2, 142, 200)],
     3560
   );
 
-  assert.deepEqual(actions[0], {
+  assert.deepEqual(actions[1], {
     kind: 'button',
     button: 'left',
     isDown: true
@@ -148,12 +155,12 @@ test('default double-tap hold accepts normal timing and spacing', () => {
   gesture.handleTouches('down', [second], [second], 5540);
   const actions = gesture.handleTouches(
     'move',
-    [point(2, 138, 200)],
-    [point(2, 138, 200)],
+    [point(2, 140, 200)],
+    [point(2, 140, 200)],
     5560
   );
 
-  assert.deepEqual(actions[0], {
+  assert.deepEqual(actions[1], {
     kind: 'button',
     button: 'left',
     isDown: true

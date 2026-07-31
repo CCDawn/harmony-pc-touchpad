@@ -1,5 +1,6 @@
 const pointerGain: number = 1.35;
 const pointerDeadZonePx: number = 4;
+const dragActivationDistancePx: number = 8;
 const tapDistancePx: number = 6;
 const tapDurationMs: number = 250;
 const baseDoubleTapIntervalMs: number = 420;
@@ -216,7 +217,10 @@ export class TouchpadGesture {
     this.lastPoint = point;
     this.lastTimeMs = timeMs;
     const activationDistance: number = this.doubleTapCandidate ?
-      Math.max(2, pointerDeadZonePx / this.settings.dragSensitivity) :
+      Math.max(
+        dragActivationDistancePx,
+        pointerDeadZonePx / this.settings.dragSensitivity
+      ) :
       pointerDeadZonePx;
     if (totalDistance <= activationDistance) {
       return [];
@@ -226,13 +230,25 @@ export class TouchpadGesture {
     const actions: Array<TouchpadAction> = [];
     if (this.doubleTapCandidate && this.mode !== 'dragging') {
       this.mode = 'dragging';
+      const dragDx: number =
+        (point.x - this.startPoint.x) * pointerGain;
+      const dragDy: number =
+        (point.y - this.startPoint.y) * pointerGain;
+      if (dragDx !== 0 || dragDy !== 0) {
+        actions.push({
+          kind: 'move',
+          dx: dragDx,
+          dy: dragDy,
+          velocity: Math.hypot(dragDx, dragDy) * 1000 /
+            Math.max(1, timeMs - this.startTimeMs)
+        });
+      }
       actions.push({
         kind: 'button',
         button: 'left',
         isDown: true
       });
-    }
-    if (rawDx !== 0 || rawDy !== 0) {
+    } else if (rawDx !== 0 || rawDy !== 0) {
       actions.push({
         kind: 'move',
         dx: rawDx * pointerGain,
