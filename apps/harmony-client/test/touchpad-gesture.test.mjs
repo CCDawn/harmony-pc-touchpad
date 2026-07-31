@@ -41,6 +41,10 @@ test('short stationary one-finger touch emits one left click', () => {
   gesture.handleTouches('down', [start], [start], 2000);
   assert.deepEqual(
     gesture.handleTouches('up', [], [point(1, 103, 204)], 2140),
+    []
+  );
+  assert.deepEqual(
+    gesture.flushPendingTap(),
     [{ kind: 'click', button: 'left' }]
   );
 });
@@ -52,7 +56,7 @@ test('double tap then hold transitions into bounded left-button drag', () => {
   gesture.handleTouches('down', [first], [first], 3000);
   assert.deepEqual(
     gesture.handleTouches('up', [], [first], 3080),
-    [{ kind: 'click', button: 'left' }]
+    []
   );
 
   const second = point(2, 102, 201);
@@ -72,6 +76,47 @@ test('double tap then hold transitions into bounded left-button drag', () => {
   assert.deepEqual(
     gesture.handleTouches('up', [], [point(2, 112, 201)], 3300),
     [{ kind: 'button', button: 'left', isDown: false }]
+  );
+});
+
+test('double tap without movement emits two clicks after the second release', () => {
+  const gesture = new TouchpadGesture();
+  const first = point(1, 100, 200);
+
+  gesture.handleTouches('down', [first], [first], 3400);
+  assert.deepEqual(
+    gesture.handleTouches('up', [], [first], 3480),
+    []
+  );
+  const second = point(2, 102, 201);
+  assert.deepEqual(
+    gesture.handleTouches('down', [second], [second], 3600),
+    []
+  );
+  assert.deepEqual(
+    gesture.handleTouches('up', [], [second], 3680),
+    [
+      { kind: 'click', button: 'left' },
+      { kind: 'click', button: 'left' }
+    ]
+  );
+});
+
+test('double tap stays eligible after the responsive single-click flush', () => {
+  const gesture = new TouchpadGesture();
+  const first = point(1, 100, 200);
+
+  gesture.handleTouches('down', [first], [first], 3800);
+  gesture.handleTouches('up', [], [first], 3880);
+  assert.deepEqual(
+    gesture.flushPendingTap(),
+    [{ kind: 'click', button: 'left' }]
+  );
+  const second = point(2, 102, 201);
+  gesture.handleTouches('down', [second], [second], 4100);
+  assert.deepEqual(
+    gesture.handleTouches('up', [], [second], 4180),
+    [{ kind: 'click', button: 'left' }]
   );
 });
 

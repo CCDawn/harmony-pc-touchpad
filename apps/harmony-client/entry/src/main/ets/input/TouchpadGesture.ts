@@ -94,6 +94,7 @@ export class TouchpadGesture {
   private lastTimeMs: number = 0;
   private moved: boolean = false;
   private doubleTapCandidate: boolean = false;
+  private pendingTap: boolean = false;
   private lastTapTimeMs: number = -10000;
   private lastTapX: number = 0;
   private lastTapY: number = 0;
@@ -120,6 +121,29 @@ export class TouchpadGesture {
     };
   }
 
+  pendingTapTimeoutMs(): number {
+    return Math.min(180, this.doubleTapWindowMs());
+  }
+
+  private doubleTapWindowMs(): number {
+    return baseDoubleTapIntervalMs * this.settings.dragSensitivity;
+  }
+
+  hasPendingTap(): boolean {
+    return this.pendingTap && !this.doubleTapCandidate;
+  }
+
+  flushPendingTap(): Array<TouchpadAction> {
+    if (!this.pendingTap || this.doubleTapCandidate) {
+      return [];
+    }
+    this.pendingTap = false;
+    return [{
+      kind: 'click',
+      button: 'left'
+    }];
+  }
+
   handleTouches(
     type: TouchpadEventType,
     touches: Array<TouchPoint>,
@@ -143,8 +167,7 @@ export class TouchpadGesture {
     }
 
     if (type === 'down' && touches.length === 1) {
-      this.beginPointer(touches[0], timeMs);
-      return [];
+      return this.beginPointer(touches[0], timeMs);
     }
 
     if (type === 'down' && touches.length === 2) {
@@ -175,22 +198,29 @@ export class TouchpadGesture {
     return [];
   }
 
-  private beginPointer(point: TouchPoint, timeMs: number): void {
-    this.mode = 'pointer';
-    this.startPoint = point;
-    this.lastPoint = point;
-    this.startTimeMs = timeMs;
-    this.lastTimeMs = timeMs;
-    this.moved = false;
-    this.doubleTapCandidate =
-      timeMs - this.lastTapTimeMs <=
-        baseDoubleTapIntervalMs * this.settings.dragSensitivity &&
+  private beginPointer(
+    point: TouchPoint,
+    timeMs: number
+  ): Array<TouchpadAction> {
+    const isDoubleTap: boolean = this.lastTapTimeMs > -10000 &&
+      timeMs - this.lastTapTimeMs <= this.doubleTapWindowMs() &&
       distance(
         point.x,
         point.y,
         this.lastTapX,
         this.lastTapY
       ) <= baseDoubleTapDistancePx * this.settings.dragSensitivity;
+    const actions: Array<TouchpadAction> = isDoubleTap ?
+      [] :
+      this.flushPendingTap();
+    this.mode = 'pointer';
+    this.startPoint = point;
+    this.lastPoint = point;
+    this.startTimeMs = timeMs;
+    this.lastTimeMs = timeMs;
+    this.moved = false;
+    this.doubleTapCandidate = isDoubleTap;
+    return actions;
   }
 
   private movePointer(
@@ -243,6 +273,7 @@ export class TouchpadGesture {
     if (this.mode === 'dragging') {
       this.mode = 'idle';
       this.doubleTapCandidate = false;
+      this.pendingTap = false;
       this.lastTapTimeMs = -10000;
       return [{
         kind: 'button',
@@ -258,19 +289,31 @@ export class TouchpadGesture {
       this.startPoint.x,
       this.startPoint.y
     );
+    const wasDoubleTap: boolean = this.doubleTapCandidate;
     this.mode = 'idle';
-    if (!this.moved &&
+    if (wasDoubleTap && !this.moved &&
+      durationMs <= tapDurationMs &&
+      totalDistance <= tapDistancePx) {
+      const firstClickPending: boolean = this.pendingTap;
+      this.doubleTapCandidate = false;
+      this.pendingTap = false;
+      this.lastTapTimeMs = -10000;
+      return firstClickPending ? [
+        { kind: 'click', button: 'left' },
+        { kind: 'click', button: 'left' }
+      ] : [{ kind: 'click', button: 'left' }];
+    }
+    if (!wasDoubleTap && !this.moved &&
       durationMs <= tapDurationMs &&
       totalDistance <= tapDistancePx) {
       this.lastTapTimeMs = timeMs;
       this.lastTapX = point.x;
       this.lastTapY = point.y;
-      return [{
-        kind: 'click',
-        button: 'left'
-      }];
+      this.pendingTap = true;
+      return [];
     }
     this.doubleTapCandidate = false;
+    this.pendingTap = false;
     return [];
   }
 
@@ -295,6 +338,8 @@ export class TouchpadGesture {
     this.scrollStarted = false;
     this.scrollAxis = 'none';
     this.doubleTapCandidate = false;
+    this.pendingTap = false;
+    this.lastTapTimeMs = -10000;
     return actions;
   }
 
