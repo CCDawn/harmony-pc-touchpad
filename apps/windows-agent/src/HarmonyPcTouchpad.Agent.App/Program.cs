@@ -7,12 +7,19 @@ namespace HarmonyPcTouchpad.Agent.App;
 internal static class Program
 {
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
         try
         {
-            Run();
+            using var instance = new SingleInstanceCoordinator();
+            if (!instance.IsPrimary)
+            {
+                instance.SignalPrimary();
+                return;
+            }
+
+            Run(AgentStartupOptions.Parse(args), instance);
         }
         catch (Exception error)
         {
@@ -24,17 +31,30 @@ internal static class Program
         }
     }
 
-    private static void Run()
+    private static void Run(
+        AgentStartupOptions options,
+        SingleInstanceCoordinator instance)
     {
         string dataRoot = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "HarmonyPcTouchpad");
         var protector = new DpapiSecretProtector();
+        IReadOnlyList<PrivateNetworkBinding> bindings =
+            PrivateNetworkAddressDiscovery.DiscoverBindings();
+        if (bindings.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "未找到可安全绑定的 RFC1918 或 IPv6 ULA 私有网络地址。");
+        }
+        System.Net.IPAddress[] addresses = bindings
+            .Select(binding => binding.Address)
+            .Distinct()
+            .ToArray();
         using WindowsAgentIdentity identity =
             new WindowsAgentIdentityStore(
                 Path.Combine(dataRoot, "identity.json"),
                 protector)
-            .LoadOrCreate();
+            .LoadOrCreate(addresses);
         var credentials = new WindowsDeviceCredentialStore(
             Path.Combine(dataRoot, "devices.json"),
             protector);
@@ -47,17 +67,9 @@ internal static class Program
             TimeProvider.System,
             RequestAuthenticator.AllowedClockSkew,
             RequestAuthenticator.ReplayLifetime);
-        IReadOnlyList<PrivateNetworkBinding> bindings =
-            PrivateNetworkAddressDiscovery.DiscoverBindings();
-        if (bindings.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "未找到可安全绑定的 RFC1918 或 IPv6 ULA 私有网络地址。");
-        }
-        System.Net.IPAddress[] addresses = bindings
-            .Select(binding => binding.Address)
-            .Distinct()
-            .ToArray();
+        Uri pairingEndpoint = PairingEndpointSelector.Create(
+            addresses,
+            TransportPolicy.Port);
 
         var inputSink = new WindowsInputSink(new NativeWindowsInputApi());
         var host = new AgentWebSocketHost(
@@ -86,8 +98,7 @@ internal static class Program
                 string payload = PairingQrCodec.Encode(new(
                     1,
                     identity.AgentId,
-                    new Uri(
-                        $"wss://{identity.HostName}:{TransportPolicy.Port}/pair"),
+                    pairingEndpoint,
                     CertificateFingerprint.ComputeSpkiSha256(identity.Certificate),
                     ticket.Token,
                     ticket.ExpiresAt.ToUnixTimeMilliseconds()));
@@ -99,9 +110,18 @@ internal static class Program
                 host,
                 advertiser,
                 addresses,
-                CreatePairingContent);
+                CreatePairingContent,
+                options.ShowPairing);
             hostOwnedByContext = true;
-            Application.Run(context);
+            instance.StartListening(context.RequestShowPairingCode);
+            try
+            {
+                Application.Run(context);
+            }
+            finally
+            {
+                instance.StopListening();
+            }
         }
         catch (Exception startupError)
         {

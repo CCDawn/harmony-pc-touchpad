@@ -9,7 +9,7 @@ public sealed class InputConnectionProcessor
 {
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private static readonly string[] ImplementedCapabilities =
-        ["pointer-delta", "scroll-v1"];
+        ["pointer-delta", "scroll-v1", "gesture-v1"];
 
     private readonly TimeProvider _clock;
     private readonly Func<string> _sessionIdFactory;

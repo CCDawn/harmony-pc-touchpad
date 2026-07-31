@@ -4,6 +4,11 @@
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>HarmonyPcTouchpad</AssemblyName>
+    <Product>Harmony PC Touchpad</Product>
+    <Company>CCDawn</Company>
+    <Description>Secure HarmonyOS touchpad connection agent for Windows.</Description>
+    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

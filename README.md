@@ -6,11 +6,13 @@
 Turn a HarmonyOS phone into an Apple-style touchpad for Windows 10/11 PCs.
 
 > [!IMPORTANT]
-> The Windows agent now contains an authenticated WSS transport, but it is
-> still a development build. Windows mDNS advertising and the HarmonyOS
-> discovery and secure-pairing application are implemented; input gestures,
-> installer/signing, and beta hardening are not implemented yet. Real-device
-> acceptance of Scan Kit, TLS certificate anchoring, and HUKS remains required.
+> This is still a development build. Secure QR pairing and authenticated
+> one-finger pointer/tap control have passed a real-device LAN acceptance run.
+> Landscape touchpad mode, adjustable drag/scroll behavior, and core
+> two-finger gestures are implemented but still require final real-device
+> acceptance. The Windows per-user installer has passed local install,
+> shortcut, single-instance, and uninstall acceptance; distribution signing
+> and beta hardening are not complete.
 
 ## Product direction
 
@@ -46,10 +48,14 @@ and internet remote control are outside the MVP.
   and shutdown deregistration
 - Buildable [HarmonyOS client](apps/harmony-client/README.md) with NetworkKit
   discovery plus Scan Kit QR pairing, SPKI pinning, exact-certificate WSS
-  trust, and HUKS-backed device-secret storage
+  trust, HUKS-backed device-secret storage, authenticated `/input` control,
+  immersive landscape mode, one-finger pointer/tap/drag, two-finger
+  scroll/right-click, and persistent gesture/haptic settings
 - Console-free Windows tray shell with a private-LAN-only Kestrel WSS listener,
   single-controller ownership, bounded messages/rates, idle input release, and
   a two-minute pairing QR window
+- Self-contained Windows x64 installer with desktop/Start menu shortcuts,
+  optional sign-in autostart, and single-instance pairing-window activation
 
 ## Run the contract tests
 
@@ -84,9 +90,11 @@ WSS port `47431` only on discovered RFC1918 or IPv6 ULA addresses.
 - [x] Connect the security core to WSS and the single-controller transport
 - [x] Add Windows mDNS advertising and the HarmonyOS discovery foundation
 - [x] Build secure HarmonyOS pairing
-- [ ] Add authenticated HarmonyOS `/input` connection and one-finger control
-- [ ] Implement deterministic one- to four-finger gesture recognition
-- [ ] Package and validate the Windows/HarmonyOS beta
+- [x] Add authenticated HarmonyOS `/input` connection and one-finger control
+- [x] Add immersive landscape mode and deterministic one-/two-finger gestures
+- [x] Package and locally validate the Windows desktop agent
+- [ ] Implement and validate three-/four-finger system gestures
+- [ ] Sign and validate the Windows/HarmonyOS public beta
 - [ ] Evaluate Bluetooth HID on HarmonyOS 26/API 23 hardware
 
 ## Security and licensing

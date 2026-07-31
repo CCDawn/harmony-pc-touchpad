@@ -123,7 +123,7 @@ public sealed class InputConnectionProcessorTests
         var connection = new ScriptedConnection(
             TransportMessage.Text(Hello(
                 "phone-001",
-                ["pointer-delta", "gesture-v1", "future-capability"])),
+                ["pointer-delta", "scroll-v1", "gesture-v1", "future-capability"])),
             TransportMessage.Text(ControlRequest("session-test")),
             TransportMessage.Closed());
         var processor = new InputConnectionProcessor(
@@ -144,7 +144,7 @@ public sealed class InputConnectionProcessorTests
             .EnumerateArray()
             .Select(value => value.GetString()!)
             .ToArray();
-        Assert.Equal(["pointer-delta"], capabilities);
+        Assert.Equal(["pointer-delta", "scroll-v1", "gesture-v1"], capabilities);
     }
 
     [Fact]

@@ -12,6 +12,7 @@ internal sealed class AgentApplicationContext : ApplicationContext
     private readonly WindowsMdnsAdvertiser _advertiser;
     private readonly Func<PairingDisplayContent> _createPairingContent;
     private readonly NotifyIcon _trayIcon;
+    private readonly Control _dispatcher;
     private PairingForm? _pairingForm;
     private bool _advertiserDisposed;
     private bool _hostDisposed;
@@ -21,7 +22,8 @@ internal sealed class AgentApplicationContext : ApplicationContext
         AgentWebSocketHost host,
         WindowsMdnsAdvertiser advertiser,
         IReadOnlyList<IPAddress> listenAddresses,
-        Func<PairingDisplayContent> createPairingContent)
+        Func<PairingDisplayContent> createPairingContent,
+        bool showPairingOnStartup = false)
     {
         _inputSink = inputSink ?? throw new ArgumentNullException(nameof(inputSink));
         _host = host ?? throw new ArgumentNullException(nameof(host));
@@ -30,6 +32,8 @@ internal sealed class AgentApplicationContext : ApplicationContext
         _createPairingContent = createPairingContent ??
             throw new ArgumentNullException(nameof(createPairingContent));
         ArgumentNullException.ThrowIfNull(listenAddresses);
+        _dispatcher = new Control();
+        _dispatcher.CreateControl();
 
         var pairingItem = new ToolStripMenuItem("显示配对二维码");
         pairingItem.Click += (_, _) => ShowPairingCode();
@@ -52,6 +56,11 @@ internal sealed class AgentApplicationContext : ApplicationContext
             "Harmony PC Touchpad Agent",
             $"WSS 正在监听 {listenAddresses.Count} 个私有网络地址。",
             ToolTipIcon.Info);
+
+        if (showPairingOnStartup)
+        {
+            ShowPairingCode();
+        }
     }
 
     protected override void ExitThreadCore()
@@ -81,6 +90,7 @@ internal sealed class AgentApplicationContext : ApplicationContext
         {
             _trayIcon.Dispose();
             _pairingForm?.Dispose();
+            _dispatcher.Dispose();
             try
             {
                 DisposeAdvertiser();
@@ -92,6 +102,16 @@ internal sealed class AgentApplicationContext : ApplicationContext
         }
 
         base.Dispose(disposing);
+    }
+
+    public void RequestShowPairingCode()
+    {
+        if (_dispatcher.IsDisposed)
+        {
+            return;
+        }
+
+        _dispatcher.BeginInvoke(ShowPairingCode);
     }
 
     private void ShowPairingCode()

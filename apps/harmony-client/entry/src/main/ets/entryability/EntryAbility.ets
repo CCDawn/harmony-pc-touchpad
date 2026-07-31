@@ -6,7 +6,24 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
-    windowStage.loadContent('pages/Index')
+    this.configureAndLoad(windowStage);
+  }
+
+  private async configureAndLoad(
+    windowStage: window.WindowStage
+  ): Promise<void> {
+    try {
+      const mainWindow: window.Window =
+        await windowStage.getMainWindow();
+      await mainWindow.setPreferredOrientation(
+        window.Orientation.LANDSCAPE
+      );
+      await mainWindow.setWindowLayoutFullScreen(true);
+      const enabledBars: Array<'status' | 'navigation'> = [];
+      await mainWindow.setWindowSystemBarEnable(enabledBars);
+    } catch (_error) {
+    }
+    await windowStage.loadContent('pages/Index')
       .catch((_error: Error): void => {
       });
   }

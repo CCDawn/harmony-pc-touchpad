@@ -22,6 +22,9 @@
           ],
           "when": "inuse"
         }
+      },
+      {
+        "name": "ohos.permission.VIBRATE"
       }
     ],
     "abilities": [
@@ -33,6 +36,7 @@
         "label": "$string:app_name",
         "startWindowIcon": "$media:app_icon",
         "startWindowBackground": "$color:start_window_background",
+        "orientation": "landscape",
         "exported": true,
         "skills": [
           {

@@ -109,7 +109,7 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
-      "harmonypctouchpad.agent.app": {
+      "HarmonyPcTouchpad": {
         "type": "Project",
         "dependencies": {
           "HarmonyPcTouchpad.Agent.Core": "[1.0.0, )",

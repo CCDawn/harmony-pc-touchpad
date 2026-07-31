@@ -13,14 +13,17 @@ public enum WindowsInputCommandKind
     MiddleDown,
     MiddleUp,
     VerticalWheel,
-    HorizontalWheel
+    HorizontalWheel,
+    KeyDown,
+    KeyUp
 }
 
 public readonly record struct WindowsInputCommand(
     WindowsInputCommandKind Kind,
     int X = 0,
     int Y = 0,
-    int WheelDelta = 0);
+    int WheelDelta = 0,
+    ushort VirtualKey = 0);
 
 public interface IWindowsInputApi
 {
@@ -31,20 +34,40 @@ public sealed partial class NativeWindowsInputApi : IWindowsInputApi
 {
     public void Send(WindowsInputCommand command)
     {
-        NativeInput input = new()
-        {
-            Type = NativeMethods.InputMouse,
-            Data = new NativeInputUnion
+        NativeInput input = command.Kind is
+            WindowsInputCommandKind.KeyDown or
+            WindowsInputCommandKind.KeyUp ?
+            new NativeInput
             {
-                Mouse = new NativeMouseInput
+                Type = NativeMethods.InputKeyboard,
+                Data = new NativeInputUnion
                 {
-                    Dx = command.X,
-                    Dy = command.Y,
-                    MouseData = unchecked((uint)command.WheelDelta),
-                    Flags = ReadFlags(command.Kind)
+                    Keyboard = new NativeKeyboardInput
+                    {
+                        VirtualKey = command.VirtualKey,
+                        ScanCode = 0,
+                        Flags = command.Kind == WindowsInputCommandKind.KeyUp ?
+                            NativeMethods.KeyboardEventKeyUp :
+                            0,
+                        Time = 0,
+                        ExtraInfo = 0
+                    }
                 }
-            }
-        };
+            } :
+            new NativeInput
+            {
+                Type = NativeMethods.InputMouse,
+                Data = new NativeInputUnion
+                {
+                    Mouse = new NativeMouseInput
+                    {
+                        Dx = command.X,
+                        Dy = command.Y,
+                        MouseData = unchecked((uint)command.WheelDelta),
+                        Flags = ReadMouseFlags(command.Kind)
+                    }
+                }
+            };
 
         uint sent = NativeMethods.SendInput(1, [input], Marshal.SizeOf<NativeInput>());
         if (sent != 1)
@@ -55,7 +78,7 @@ public sealed partial class NativeWindowsInputApi : IWindowsInputApi
         }
     }
 
-    private static uint ReadFlags(WindowsInputCommandKind kind) => kind switch
+    private static uint ReadMouseFlags(WindowsInputCommandKind kind) => kind switch
     {
         WindowsInputCommandKind.Move => NativeMethods.MouseEventMove,
         WindowsInputCommandKind.LeftDown => NativeMethods.MouseEventLeftDown,
@@ -81,6 +104,9 @@ public sealed partial class NativeWindowsInputApi : IWindowsInputApi
     {
         [FieldOffset(0)]
         public NativeMouseInput Mouse;
+
+        [FieldOffset(0)]
+        public NativeKeyboardInput Keyboard;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -94,9 +120,20 @@ public sealed partial class NativeWindowsInputApi : IWindowsInputApi
         public nuint ExtraInfo;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeKeyboardInput
+    {
+        public ushort VirtualKey;
+        public ushort ScanCode;
+        public uint Flags;
+        public uint Time;
+        public nuint ExtraInfo;
+    }
+
     private static partial class NativeMethods
     {
         internal const uint InputMouse = 0;
+        internal const uint InputKeyboard = 1;
         internal const uint MouseEventMove = 0x0001;
         internal const uint MouseEventLeftDown = 0x0002;
         internal const uint MouseEventLeftUp = 0x0004;
@@ -106,6 +143,7 @@ public sealed partial class NativeWindowsInputApi : IWindowsInputApi
         internal const uint MouseEventMiddleUp = 0x0040;
         internal const uint MouseEventWheel = 0x0800;
         internal const uint MouseEventHWheel = 0x1000;
+        internal const uint KeyboardEventKeyUp = 0x0002;
 
         [LibraryImport("user32.dll", SetLastError = true)]
         internal static partial uint SendInput(

@@ -58,7 +58,141 @@ public sealed class WindowsInputSinkTests
     }
 
     [Fact]
-    public void UnsupportedGestureFailsExplicitly()
+    public void PinchMapsToCtrlWheelAndReleasesControl()
+    {
+        var native = new RecordingWindowsInputApi();
+        var sink = new WindowsInputSink(native);
+        sink.HandleGesture(new GestureFrame(
+            1,
+            InputFrameFlags.None,
+            0,
+            1,
+            GestureKind.Pinch,
+            InputPhase.Begin,
+            GestureDirection.None,
+            1,
+            0));
+        sink.HandleGesture(new GestureFrame(
+            1,
+            InputFrameFlags.Coalescible,
+            1,
+            2,
+            GestureKind.Pinch,
+            InputPhase.Update,
+            GestureDirection.None,
+            1.2f,
+            0));
+        sink.HandleGesture(new GestureFrame(
+            1,
+            InputFrameFlags.Final,
+            2,
+            3,
+            GestureKind.Pinch,
+            InputPhase.End,
+            GestureDirection.None,
+            1,
+            0));
+
+        Assert.Equal(
+            [
+                new WindowsInputCommand(
+                    WindowsInputCommandKind.KeyDown,
+                    VirtualKey: 0x11),
+                new WindowsInputCommand(
+                    WindowsInputCommandKind.VerticalWheel,
+                    WheelDelta: 120),
+                new WindowsInputCommand(
+                    WindowsInputCommandKind.KeyUp,
+                    VirtualKey: 0x11)
+            ],
+            native.Commands);
+    }
+
+    [Fact]
+    public void ThreeFingerSwipeMapsToTaskViewChord()
+    {
+        var native = new RecordingWindowsInputApi();
+        var sink = new WindowsInputSink(native);
+
+        sink.HandleGesture(new GestureFrame(
+            1,
+            InputFrameFlags.Final,
+            0,
+            1,
+            GestureKind.ThreeFingerSwipe,
+            InputPhase.End,
+            GestureDirection.Up,
+            100,
+            1250));
+
+        Assert.Equal(
+            [
+                new WindowsInputCommand(WindowsInputCommandKind.KeyDown, VirtualKey: 0x5B),
+                new WindowsInputCommand(WindowsInputCommandKind.KeyDown, VirtualKey: 0x09),
+                new WindowsInputCommand(WindowsInputCommandKind.KeyUp, VirtualKey: 0x09),
+                new WindowsInputCommand(WindowsInputCommandKind.KeyUp, VirtualKey: 0x5B)
+            ],
+            native.Commands);
+    }
+
+    [Fact]
+    public void FourFingerRightSwipeMapsToNextVirtualDesktopChord()
+    {
+        var native = new RecordingWindowsInputApi();
+        var sink = new WindowsInputSink(native);
+
+        sink.HandleGesture(new GestureFrame(
+            1,
+            InputFrameFlags.Final,
+            0,
+            1,
+            GestureKind.FourFingerSwipe,
+            InputPhase.End,
+            GestureDirection.Right,
+            100,
+            1250));
+
+        Assert.Equal(
+            [
+                new WindowsInputCommand(WindowsInputCommandKind.KeyDown, VirtualKey: 0x11),
+                new WindowsInputCommand(WindowsInputCommandKind.KeyDown, VirtualKey: 0x5B),
+                new WindowsInputCommand(WindowsInputCommandKind.KeyDown, VirtualKey: 0x27),
+                new WindowsInputCommand(WindowsInputCommandKind.KeyUp, VirtualKey: 0x27),
+                new WindowsInputCommand(WindowsInputCommandKind.KeyUp, VirtualKey: 0x5B),
+                new WindowsInputCommand(WindowsInputCommandKind.KeyUp, VirtualKey: 0x11)
+            ],
+            native.Commands);
+    }
+
+    [Fact]
+    public void ReleaseAllReleasesControlAfterInterruptedPinch()
+    {
+        var native = new RecordingWindowsInputApi();
+        var sink = new WindowsInputSink(native);
+
+        sink.HandleGesture(new GestureFrame(
+            1,
+            InputFrameFlags.None,
+            0,
+            1,
+            GestureKind.Pinch,
+            InputPhase.Begin,
+            GestureDirection.None,
+            1,
+            0));
+        sink.ReleaseAll();
+        sink.ReleaseAll();
+
+        Assert.Equal(
+            [
+                new WindowsInputCommand(WindowsInputCommandKind.KeyDown, VirtualKey: 0x11),
+                new WindowsInputCommand(WindowsInputCommandKind.KeyUp, VirtualKey: 0x11)
+            ],
+            native.Commands);
+    }
+
+    [Fact]
+    public void RotateRemainsExplicitlyUnsupported()
     {
         var native = new RecordingWindowsInputApi();
         var sink = new WindowsInputSink(native);
@@ -67,11 +201,11 @@ public sealed class WindowsInputSinkTests
             InputFrameFlags.Final,
             0,
             1,
-            GestureKind.ThreeFingerSwipe,
+            GestureKind.Rotate,
             InputPhase.End,
-            GestureDirection.Up,
-            420,
-            1250);
+            GestureDirection.None,
+            1,
+            0);
 
         NotSupportedException error = Assert.Throws<NotSupportedException>(
             () => sink.HandleGesture(gesture));
