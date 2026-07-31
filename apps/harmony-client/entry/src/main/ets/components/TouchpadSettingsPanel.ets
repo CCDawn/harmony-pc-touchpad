@@ -5,6 +5,7 @@ export struct TouchpadSettingsPanel {
   @Link naturalScroll: boolean;
   @Link hapticEnabled: boolean;
   @Link hapticStrength: number;
+  @Prop hapticError: string = '';
   onSettingsChanged: () => void = (): void => {
   };
   onTestHaptic: () => void = (): void => {
@@ -156,6 +157,14 @@ export struct TouchpadSettingsPanel {
         .backgroundColor('#374151')
         .enabled(this.hapticEnabled)
         .onClick(this.onTestHaptic)
+
+      if (this.hapticError.length > 0) {
+        Text(this.hapticError)
+          .width('100%')
+          .fontSize(12)
+          .fontColor('#FCA5A5')
+          .textAlign(TextAlign.Center)
+      }
     }
     .width(390)
     .padding(24)

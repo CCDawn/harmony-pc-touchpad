@@ -52,6 +52,7 @@ struct Index {
     DEFAULT_TOUCHPAD_SETTINGS.hapticEnabled;
   @State private hapticStrength: number =
     DEFAULT_TOUCHPAD_SETTINGS.hapticStrength;
+  @State private hapticError: string = '';
   private repository?: MdnsDiscoveryRepository;
   private pairingClient?: PairingClient;
   private inputConnection?: InputConnection;
@@ -323,17 +324,22 @@ struct Index {
       return;
     }
     const baseDuration: number =
-      this.hapticStrength === 1 ? 8 :
-        (this.hapticStrength === 2 ? 16 : 24);
+      this.hapticStrength === 1 ? 30 :
+        (this.hapticStrength === 2 ? 50 : 70);
     const effect: vibrator.VibrateTime = {
       type: 'time',
-      duration: baseDuration + (isDragLock ? 6 : 0)
+      duration: baseDuration + (isDragLock ? 12 : 0)
     };
     const attribute: vibrator.VibrateAttribute = {
       usage: 'touch'
     };
     vibrator.startVibration(effect, attribute)
-      .catch((_error: Error): void => {
+      .then((): void => {
+        this.hapticError = '';
+      })
+      .catch((error: Error): void => {
+        this.hapticError = '触感反馈不可用，请检查系统震动开关和应用权限。';
+        console.error(`[HAPTIC] startVibration failed: ${error.message}`);
       });
   }
 
@@ -605,6 +611,7 @@ struct Index {
                 naturalScroll: this.naturalScroll,
                 hapticEnabled: this.hapticEnabled,
                 hapticStrength: this.hapticStrength,
+                hapticError: this.hapticError,
                 onSettingsChanged: (): void => {
                   this.scheduleSettingsSave();
                 },

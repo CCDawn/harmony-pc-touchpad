@@ -267,6 +267,9 @@ export class InputConnection {
   private heartbeatId: number = -1;
   private isConnected: boolean = false;
   private lastPointerAtMs: number = 0;
+  private pendingPointerDx: number = 0;
+  private pendingPointerDy: number = 0;
+  private pendingPointerVelocity: number = 0;
   private sendTail: Promise<void> = Promise.resolve();
 
   constructor(
@@ -376,6 +379,8 @@ export class InputConnection {
 
       this.sequence = 0;
       this.isConnected = true;
+      this.lastPointerAtMs = 0;
+      this.resetPendingPointer();
       this.startHeartbeat(helloPayload.heartbeatMs);
       this.statusListener({
         connected: true,
@@ -396,6 +401,12 @@ export class InputConnection {
     if (!this.isConnected) {
       return;
     }
+    this.pendingPointerDx += dx;
+    this.pendingPointerDy += dy;
+    this.pendingPointerVelocity = Math.max(
+      this.pendingPointerVelocity,
+      velocity
+    );
     const nowMs: number = systemDateTime.getUptime(
       systemDateTime.TimeType.STARTUP,
       false
@@ -404,12 +415,16 @@ export class InputConnection {
       return;
     }
     this.lastPointerAtMs = nowMs;
+    const pendingDx: number = this.pendingPointerDx;
+    const pendingDy: number = this.pendingPointerDy;
+    const pendingVelocity: number = this.pendingPointerVelocity;
+    this.resetPendingPointer();
     const frame: ArrayBuffer = encodePointerDeltaFrame(
       this.nextSequence(),
       nowMs * 1000,
-      dx,
-      dy,
-      velocity
+      pendingDx,
+      pendingDy,
+      pendingVelocity
     );
     this.enqueue(frame);
   }
@@ -418,6 +433,7 @@ export class InputConnection {
     if (!this.isConnected) {
       return;
     }
+    this.flushPendingPointer();
     const timestampUs: number = monotonicMicroseconds();
     this.enqueue(encodeButtonFrame(
       this.nextSequence(),
@@ -436,6 +452,9 @@ export class InputConnection {
   button(button: TouchpadButton, isDown: boolean): void {
     if (!this.isConnected) {
       return;
+    }
+    if (!isDown) {
+      this.flushPendingPointer();
     }
     this.enqueue(encodeButtonFrame(
       this.nextSequence(),
@@ -466,6 +485,7 @@ export class InputConnection {
     if (!this.isConnected) {
       return;
     }
+    this.flushPendingPointer();
     this.enqueue(encodeReleaseAllFrame(
       this.nextSequence(),
       monotonicMicroseconds()
@@ -475,6 +495,7 @@ export class InputConnection {
   async disconnect(): Promise<void> {
     this.stopHeartbeat();
     if (this.isConnected && this.client !== undefined) {
+      this.flushPendingPointer();
       this.enqueue(encodeReleaseAllFrame(
         this.nextSequence(),
         monotonicMicroseconds()
@@ -485,6 +506,7 @@ export class InputConnection {
       }
     }
     this.isConnected = false;
+    this.resetPendingPointer();
     await this.closeSocket();
   }
 
@@ -538,6 +560,34 @@ export class InputConnection {
     const current: number = this.sequence;
     this.sequence = (this.sequence + 1) >>> 0;
     return current;
+  }
+
+  private flushPendingPointer(): void {
+    if (this.pendingPointerDx === 0 && this.pendingPointerDy === 0) {
+      return;
+    }
+    const nowMs: number = systemDateTime.getUptime(
+      systemDateTime.TimeType.STARTUP,
+      false
+    );
+    this.lastPointerAtMs = nowMs;
+    const pendingDx: number = this.pendingPointerDx;
+    const pendingDy: number = this.pendingPointerDy;
+    const pendingVelocity: number = this.pendingPointerVelocity;
+    this.resetPendingPointer();
+    this.enqueue(encodePointerDeltaFrame(
+      this.nextSequence(),
+      nowMs * 1000,
+      pendingDx,
+      pendingDy,
+      pendingVelocity
+    ));
+  }
+
+  private resetPendingPointer(): void {
+    this.pendingPointerDx = 0;
+    this.pendingPointerDy = 0;
+    this.pendingPointerVelocity = 0;
   }
 
   private buttonCode(button: TouchpadButton): number {

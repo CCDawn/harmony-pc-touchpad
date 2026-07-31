@@ -2,8 +2,8 @@ const pointerGain: number = 1.35;
 const pointerDeadZonePx: number = 4;
 const tapDistancePx: number = 6;
 const tapDurationMs: number = 250;
-const baseDoubleTapIntervalMs: number = 320;
-const baseDoubleTapDistancePx: number = 24;
+const baseDoubleTapIntervalMs: number = 420;
+const baseDoubleTapDistancePx: number = 36;
 const scrollDeadZonePx: number = 3;
 
 export type TouchpadEventType = 'down' | 'move' | 'up' | 'cancel';

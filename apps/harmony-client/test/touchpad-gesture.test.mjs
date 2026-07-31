@@ -101,6 +101,28 @@ test('drag sensitivity widens the double-tap window and activation distance', ()
   });
 });
 
+test('default double-tap hold accepts normal timing and spacing', () => {
+  const gesture = new TouchpadGesture();
+  const first = point(1, 100, 200);
+
+  gesture.handleTouches('down', [first], [first], 5000);
+  gesture.handleTouches('up', [], [first], 5080);
+  const second = point(2, 130, 200);
+  gesture.handleTouches('down', [second], [second], 5540);
+  const actions = gesture.handleTouches(
+    'move',
+    [point(2, 138, 200)],
+    [point(2, 138, 200)],
+    5560
+  );
+
+  assert.deepEqual(actions[0], {
+    kind: 'button',
+    button: 'left',
+    isDown: true
+  });
+});
+
 test('two-finger movement tracks touch ids and applies configured speed', () => {
   const gesture = new TouchpadGesture({
     dragSensitivity: 1.25,
