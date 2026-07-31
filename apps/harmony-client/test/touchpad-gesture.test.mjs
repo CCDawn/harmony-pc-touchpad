@@ -265,7 +265,95 @@ test('two-finger movement never falls through to a right click', () => {
   );
 });
 
-test('third finger cancels active input and suppresses until every finger lifts', () => {
+test('two-finger distance changes lock to pinch and preserve incremental scale', () => {
+  const gesture = new TouchpadGesture();
+  const one = point(1, 100, 100);
+  const two = point(2, 200, 100);
+
+  gesture.handleTouches('down', [one], [one], 7000);
+  gesture.handleTouches('down', [one, two], [two], 7010);
+  const actions = gesture.handleTouches(
+    'move',
+    [point(1, 95, 100), point(2, 205, 100)],
+    [point(1, 95, 100), point(2, 205, 100)],
+    7030
+  );
+  assert.equal(actions[0].kind, 'pinch');
+  assert.equal(actions[0].phase, 'begin');
+  assert.equal(actions[1].kind, 'pinch');
+  assert.equal(actions[1].phase, 'update');
+  assert.ok(Math.abs(actions[1].scaleRatio - 1.1) < 0.000001);
+  assert.deepEqual(
+    gesture.handleTouches(
+      'up',
+      [point(2, 205, 100)],
+      [point(1, 95, 100)],
+      7050
+    ),
+    [{ kind: 'pinch', phase: 'end', scaleRatio: 1, scaleVelocity: 0 }]
+  );
+});
+
+test('three-finger upward swipe emits a semantic gesture at release', () => {
+  const gesture = new TouchpadGesture();
+  const one = point(1, 100, 200);
+  const two = point(2, 200, 200);
+  const three = point(3, 300, 200);
+
+  gesture.handleTouches('down', [one], [one], 7200);
+  gesture.handleTouches('down', [one, two], [two], 7210);
+  gesture.handleTouches('down', [one, two, three], [three], 7220);
+  gesture.handleTouches(
+    'move',
+    [point(1, 100, 100), point(2, 200, 100), point(3, 300, 100)],
+    [point(1, 100, 100), point(2, 200, 100), point(3, 300, 100)],
+    7280
+  );
+  assert.deepEqual(
+    gesture.handleTouches(
+      'up',
+      [],
+      [point(1, 100, 100), point(2, 200, 100), point(3, 300, 100)],
+      7300
+    ),
+    [{
+      kind: 'swipe',
+      fingers: 3,
+      direction: 'up',
+      distance: 100,
+      velocity: 1250
+    }]
+  );
+});
+
+test('four-finger horizontal swipe emits a desktop gesture', () => {
+  const gesture = new TouchpadGesture();
+  const start = [
+    point(1, 100, 200),
+    point(2, 200, 200),
+    point(3, 300, 200),
+    point(4, 400, 200)
+  ];
+  const end = start.map((item) => point(item.id, item.x + 100, item.y));
+
+  gesture.handleTouches('down', [start[0]], [start[0]], 7400);
+  gesture.handleTouches('down', start.slice(0, 2), [start[1]], 7410);
+  gesture.handleTouches('down', start.slice(0, 3), [start[2]], 7420);
+  gesture.handleTouches('down', start, [start[3]], 7430);
+  gesture.handleTouches('move', end, end, 7490);
+  assert.deepEqual(
+    gesture.handleTouches('up', [], end, 7510),
+    [{
+      kind: 'swipe',
+      fingers: 4,
+      direction: 'right',
+      distance: 100,
+      velocity: 1250
+    }]
+  );
+});
+
+test('third finger cancels an already active two-finger scroll', () => {
   const gesture = new TouchpadGesture();
   const one = point(1, 100, 100);
   const two = point(2, 200, 100);
@@ -273,6 +361,12 @@ test('third finger cancels active input and suppresses until every finger lifts'
 
   gesture.handleTouches('down', [one], [one], 6000);
   gesture.handleTouches('down', [one, two], [two], 6010);
+  gesture.handleTouches(
+    'move',
+    [point(1, 100, 120), point(2, 200, 120)],
+    [point(1, 100, 120), point(2, 200, 120)],
+    6020
+  );
   assert.deepEqual(
     gesture.handleTouches('down', [one, two, three], [three], 6020),
     [{ kind: 'release' }]

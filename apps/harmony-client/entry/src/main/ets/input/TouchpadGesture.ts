@@ -6,10 +6,16 @@ const tapDurationMs: number = 250;
 const baseDoubleTapIntervalMs: number = 420;
 const baseDoubleTapDistancePx: number = 36;
 const scrollDeadZonePx: number = 3;
+const pinchDeadZoneRatio: number = 0.04;
+const swipeDeadZonePx: number = 72;
+const swipeAxisBias: number = 1.2;
+const swipeMaxDurationMs: number = 800;
 
 export type TouchpadEventType = 'down' | 'move' | 'up' | 'cancel';
 export type TouchpadButton = 'left' | 'right';
-export type ScrollPhase = 'begin' | 'update' | 'end' | 'cancel';
+export type GesturePhase = 'begin' | 'update' | 'end' | 'cancel';
+export type ScrollPhase = GesturePhase;
+export type SwipeDirection = 'up' | 'down' | 'left' | 'right';
 
 export interface TouchPoint {
   id: number;
@@ -48,6 +54,21 @@ export interface ScrollAction {
   dy: number;
 }
 
+export interface PinchAction {
+  kind: 'pinch';
+  phase: GesturePhase;
+  scaleRatio: number;
+  scaleVelocity: number;
+}
+
+export interface SwipeAction {
+  kind: 'swipe';
+  fingers: 3 | 4;
+  direction: SwipeDirection;
+  distance: number;
+  velocity: number;
+}
+
 export interface ReleaseAction {
   kind: 'release';
 }
@@ -57,9 +78,18 @@ export type TouchpadAction =
   PointerClickAction |
   PointerButtonAction |
   ScrollAction |
+  PinchAction |
+  SwipeAction |
   ReleaseAction;
 
-type GestureMode = 'idle' | 'pointer' | 'scroll' | 'dragging';
+type GestureMode =
+  'idle' |
+  'pointer' |
+  'two-finger' |
+  'scroll' |
+  'pinch' |
+  'dragging' |
+  'swipe';
 type ScrollAxis = 'none' | 'horizontal' | 'vertical';
 
 function distance(
@@ -72,11 +102,24 @@ function distance(
 }
 
 function centroid(points: Array<TouchPoint>): TouchPoint {
+  if (points.length === 0) {
+    return { id: -1, x: 0, y: 0 };
+  }
+  let x: number = 0;
+  let y: number = 0;
+  points.forEach((point: TouchPoint): void => {
+    x += point.x;
+    y += point.y;
+  });
   return {
     id: -1,
-    x: (points[0].x + points[1].x) / 2,
-    y: (points[0].y + points[1].y) / 2
+    x: x / points.length,
+    y: y / points.length
   };
+}
+
+function pointDistance(left: TouchPoint, right: TouchPoint): number {
+  return distance(left.x, left.y, right.x, right.y);
 }
 
 export class TouchpadGesture {
@@ -99,7 +142,17 @@ export class TouchpadGesture {
   private lastTapX: number = 0;
   private lastTapY: number = 0;
   private scrollStarted: boolean = false;
+  private pinchStarted: boolean = false;
+  private initialPinchDistance: number = 0;
+  private lastPinchDistance: number = 0;
+  private lastPinchTimeMs: number = 0;
   private scrollAxis: ScrollAxis = 'none';
+  private swipeFingerCount: 3 | 4 = 3;
+  private swipePoints: Array<TouchPoint> = [];
+  private swipeStartPoint: TouchPoint = { id: -1, x: 0, y: 0 };
+  private swipeLastPoint: TouchPoint = { id: -1, x: 0, y: 0 };
+  private swipeStartTimeMs: number = 0;
+  private swipeMaxDistance: number = 0;
 
   constructor(settings?: Partial<TouchpadGestureSettings>) {
     this.updateSettings(settings ?? {});
@@ -143,7 +196,22 @@ export class TouchpadGesture {
       return [];
     }
 
+    if (this.mode === 'swipe') {
+      if (touches.length > 4) {
+        return this.cancelAndSuppress(true);
+      }
+      return this.handleSwipe(type, touches, changedTouches, timeMs);
+    }
+
+    if (touches.length > 4) {
+      return this.cancelAndSuppress(true);
+    }
+
     if (touches.length >= 3) {
+      if (type === 'down' &&
+        (this.mode === 'two-finger' || this.mode === 'idle')) {
+        return this.beginSwipe(touches, timeMs);
+      }
       return this.cancelAndSuppress(true);
     }
 
@@ -152,15 +220,20 @@ export class TouchpadGesture {
     }
 
     if (type === 'down' && touches.length === 2) {
-      return this.beginScroll(touches, timeMs);
+      return this.beginTwoFinger(touches, timeMs);
     }
 
-    if (touches.length === 2 && this.mode !== 'scroll') {
-      return this.beginScroll(touches, timeMs);
+    if (touches.length === 2 &&
+      this.mode !== 'two-finger' &&
+      this.mode !== 'scroll' &&
+      this.mode !== 'pinch') {
+      return this.beginTwoFinger(touches, timeMs);
     }
 
-    if (this.mode === 'scroll') {
-      return this.handleScroll(type, touches, timeMs);
+    if (this.mode === 'two-finger' ||
+      this.mode === 'scroll' ||
+      this.mode === 'pinch') {
+      return this.handleTwoFinger(type, touches, timeMs);
     }
 
     if (this.mode === 'pointer' || this.mode === 'dragging') {
@@ -302,7 +375,7 @@ export class TouchpadGesture {
     return [];
   }
 
-  private beginScroll(
+  private beginTwoFinger(
     points: Array<TouchPoint>,
     timeMs: number
   ): Array<TouchpadAction> {
@@ -314,20 +387,24 @@ export class TouchpadGesture {
         isDown: false
       });
     }
-    this.mode = 'scroll';
+    this.mode = 'two-finger';
     this.startTimeMs = timeMs;
     this.lastTimeMs = timeMs;
     this.firstScrollPoint = points[0];
     this.secondScrollPoint = points[1];
     this.lastPoint = centroid(points);
     this.scrollStarted = false;
+    this.pinchStarted = false;
+    this.initialPinchDistance = pointDistance(points[0], points[1]);
+    this.lastPinchDistance = this.initialPinchDistance;
+    this.lastPinchTimeMs = timeMs;
     this.scrollAxis = 'none';
     this.doubleTapCandidate = false;
     this.lastTapTimeMs = -10000;
     return actions;
   }
 
-  private handleScroll(
+  private handleTwoFinger(
     type: TouchpadEventType,
     touches: Array<TouchPoint>,
     timeMs: number
@@ -338,6 +415,11 @@ export class TouchpadGesture {
       const currentCentroid: TouchPoint = centroid(orderedTouches);
       const rawDx: number = currentCentroid.x - this.lastPoint.x;
       const rawDy: number = currentCentroid.y - this.lastPoint.y;
+      const currentDistance: number = pointDistance(
+        orderedTouches[0],
+        orderedTouches[1]
+      );
+      const elapsedMs: number = Math.max(1, timeMs - this.lastTimeMs);
       const maximumTravel: number = Math.max(
         distance(
           orderedTouches[0].x,
@@ -354,13 +436,63 @@ export class TouchpadGesture {
       );
       this.lastPoint = currentCentroid;
       this.lastTimeMs = timeMs;
-      if (maximumTravel <= scrollDeadZonePx) {
-        return [];
+
+      if (!this.scrollStarted && !this.pinchStarted) {
+        const safeInitialDistance: number =
+          Math.max(1, this.initialPinchDistance);
+        const scaleFromStart: number =
+          currentDistance / safeInitialDistance;
+        if (Math.abs(scaleFromStart - 1) >= pinchDeadZoneRatio) {
+          this.mode = 'pinch';
+          this.pinchStarted = true;
+          this.lastPinchDistance = currentDistance;
+          this.lastPinchTimeMs = timeMs;
+          const firstScaleRatio: number =
+            currentDistance / Math.max(1, this.initialPinchDistance);
+          return [
+            {
+              kind: 'pinch',
+              phase: 'begin',
+              scaleRatio: 1,
+              scaleVelocity: 0
+            },
+            {
+              kind: 'pinch',
+              phase: 'update',
+              scaleRatio: firstScaleRatio,
+              scaleVelocity: (firstScaleRatio - 1) * 1000 / elapsedMs
+            }
+          ];
+        }
+        if (maximumTravel <= scrollDeadZonePx) {
+          return [];
+        }
       }
 
       const actions: Array<TouchpadAction> = [];
+      if (this.pinchStarted || this.mode === 'pinch') {
+        const scaleRatio: number =
+          currentDistance / Math.max(1, this.lastPinchDistance);
+        const pinchElapsedMs: number = Math.max(
+          1,
+          timeMs - this.lastPinchTimeMs
+        );
+        this.lastPinchDistance = currentDistance;
+        this.lastPinchTimeMs = timeMs;
+        if (scaleRatio === 1) {
+          return [];
+        }
+        return [{
+          kind: 'pinch',
+          phase: 'update',
+          scaleRatio: scaleRatio,
+          scaleVelocity: (scaleRatio - 1) * 1000 /
+            pinchElapsedMs
+        }];
+      }
       if (!this.scrollStarted) {
         this.scrollStarted = true;
+        this.mode = 'scroll';
         this.scrollAxis =
           Math.abs(rawDy) >= Math.abs(rawDx) ?
             'vertical' :
@@ -390,7 +522,14 @@ export class TouchpadGesture {
 
     if (type === 'up') {
       const actions: Array<TouchpadAction> = [];
-      if (this.scrollStarted) {
+      if (this.pinchStarted || this.mode === 'pinch') {
+        actions.push({
+          kind: 'pinch',
+          phase: 'end',
+          scaleRatio: 1,
+          scaleVelocity: 0
+        });
+      } else if (this.scrollStarted) {
         actions.push({
           kind: 'scroll',
           phase: 'end',
@@ -405,10 +544,132 @@ export class TouchpadGesture {
       }
       this.mode = 'idle';
       this.suppressUntilAllReleased = touches.length > 0;
+      this.pinchStarted = false;
+      this.initialPinchDistance = 0;
+      this.lastPinchDistance = 0;
       this.scrollAxis = 'none';
       return actions;
     }
     return [];
+  }
+
+  private beginSwipe(
+    points: Array<TouchPoint>,
+    timeMs: number
+  ): Array<TouchpadAction> {
+    if (points.length !== 3 && points.length !== 4) {
+      return this.cancelAndSuppress(true);
+    }
+    this.mode = 'swipe';
+    this.swipeFingerCount = points.length === 4 ? 4 : 3;
+    this.swipePoints = points.slice();
+    this.swipeStartPoint = centroid(this.swipePoints);
+    this.swipeLastPoint = this.swipeStartPoint;
+    this.swipeStartTimeMs = timeMs;
+    this.swipeMaxDistance = 0;
+    this.suppressUntilAllReleased = false;
+    return [];
+  }
+
+  private handleSwipe(
+    type: TouchpadEventType,
+    touches: Array<TouchPoint>,
+    changedTouches: Array<TouchPoint>,
+    timeMs: number
+  ): Array<TouchpadAction> {
+    if (type === 'down' &&
+      this.swipeFingerCount === 3 &&
+      touches.length === 4 &&
+      this.swipeMaxDistance === 0) {
+      return this.beginSwipe(touches, timeMs);
+    }
+
+    if (type === 'move' &&
+      touches.length === this.swipeFingerCount) {
+      this.swipePoints = touches.slice();
+      this.swipeLastPoint = centroid(this.swipePoints);
+      this.swipeMaxDistance = Math.max(
+        this.swipeMaxDistance,
+        pointDistance(this.swipeStartPoint, this.swipeLastPoint)
+      );
+      return [];
+    }
+
+    if (type !== 'up') {
+      return [];
+    }
+
+    this.updateSwipePoints(touches, changedTouches);
+    this.swipeLastPoint = centroid(this.swipePoints);
+    this.swipeMaxDistance = Math.max(
+      this.swipeMaxDistance,
+      pointDistance(this.swipeStartPoint, this.swipeLastPoint)
+    );
+    const dx: number = this.swipeLastPoint.x - this.swipeStartPoint.x;
+    const dy: number = this.swipeLastPoint.y - this.swipeStartPoint.y;
+    const durationMs: number = Math.max(
+      1,
+      timeMs - this.swipeStartTimeMs
+    );
+    const travel: number = Math.max(Math.abs(dx), Math.abs(dy));
+    const direction: SwipeDirection | undefined =
+      this.swipeDirection(dx, dy);
+    const fingers: 3 | 4 = this.swipeFingerCount;
+    this.mode = 'idle';
+    this.suppressUntilAllReleased = touches.length > 0;
+    this.swipePoints = [];
+    this.swipeMaxDistance = 0;
+    if (direction === undefined ||
+      travel < swipeDeadZonePx ||
+      durationMs > swipeMaxDurationMs ||
+      (fingers === 4 && (direction === 'up' || direction === 'down'))) {
+      return [];
+    }
+    return [{
+      kind: 'swipe',
+      fingers: fingers,
+      direction: direction,
+      distance: travel,
+      velocity: travel * 1000 / durationMs
+    }];
+  }
+
+  private updateSwipePoints(
+    touches: Array<TouchPoint>,
+    changedTouches: Array<TouchPoint>
+  ): void {
+    const updated: Array<TouchPoint> = this.swipePoints.map(
+      (point: TouchPoint): TouchPoint => {
+        const replacement: TouchPoint | undefined =
+          touches.find((candidate: TouchPoint): boolean =>
+            candidate.id === point.id) ??
+          changedTouches.find((candidate: TouchPoint): boolean =>
+            candidate.id === point.id);
+        return replacement ?? point;
+      }
+    );
+    changedTouches.forEach((point: TouchPoint): void => {
+      if (!updated.some((candidate: TouchPoint): boolean =>
+        candidate.id === point.id)) {
+        updated.push(point);
+      }
+    });
+    this.swipePoints = updated.slice(0, this.swipeFingerCount);
+  }
+
+  private swipeDirection(
+    dx: number,
+    dy: number
+  ): SwipeDirection | undefined {
+    const absoluteX: number = Math.abs(dx);
+    const absoluteY: number = Math.abs(dy);
+    if (absoluteY >= absoluteX * swipeAxisBias) {
+      return dy < 0 ? 'up' : 'down';
+    }
+    if (absoluteX >= absoluteY * swipeAxisBias) {
+      return dx < 0 ? 'left' : 'right';
+    }
+    return undefined;
   }
 
   private cancelAndSuppress(
@@ -416,8 +677,13 @@ export class TouchpadGesture {
   ): Array<TouchpadAction> {
     this.mode = 'idle';
     this.scrollStarted = false;
+    this.pinchStarted = false;
+    this.initialPinchDistance = 0;
+    this.lastPinchDistance = 0;
     this.scrollAxis = 'none';
     this.doubleTapCandidate = false;
+    this.swipePoints = [];
+    this.swipeMaxDistance = 0;
     this.suppressUntilAllReleased = shouldSuppress;
     return [{ kind: 'release' }];
   }

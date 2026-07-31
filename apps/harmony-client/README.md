@@ -20,6 +20,7 @@ The current milestone provides:
   pointer movement, tap-to-left-click, and double-tap-hold dragging;
 - ID-stable two-finger scrolling with axis lock, adjustable speed and natural
   direction, plus two-finger tap-to-right-click; and
+- two-finger pinch zoom plus three/four-finger semantic swipe actions; and
 - persistent controls for drag sensitivity, scroll speed/direction, and
   click/drag haptic feedback.
 

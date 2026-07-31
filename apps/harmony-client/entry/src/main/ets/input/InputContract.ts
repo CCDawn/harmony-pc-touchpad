@@ -5,6 +5,7 @@ const flagFinal: number = 2;
 const pointerDeltaType: number = 1;
 const buttonType: number = 2;
 const scrollType: number = 3;
+const gestureType: number = 4;
 const releaseAllType: number = 5;
 const buttonDown: number = 1;
 const buttonUp: number = 2;
@@ -110,6 +111,37 @@ export function encodeScrollFrame(
   view.setUint8(24, phase);
   view.setUint8(25, 0);
   view.setUint16(26, 0, true);
+  return view.buffer;
+}
+
+export function encodeGestureFrame(
+  sequence: number,
+  timestampUs: number,
+  gesture: number,
+  phase: number,
+  direction: number,
+  value1: number,
+  value2: number
+): ArrayBuffer {
+  let flags: number = 0;
+  if (phase === 2) {
+    flags = flagCoalescible;
+  } else if (phase === 3 || phase === 4) {
+    flags = flagFinal;
+  }
+  const view: DataView = createFrame(
+    gestureType,
+    flags,
+    sequence,
+    timestampUs,
+    12
+  );
+  view.setUint8(16, gesture);
+  view.setUint8(17, phase);
+  view.setUint8(18, direction);
+  view.setUint8(19, 0);
+  view.setFloat32(20, value1, true);
+  view.setFloat32(24, value2, true);
   return view.buffer;
 }
 

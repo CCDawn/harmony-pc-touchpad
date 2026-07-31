@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   buildAuthCanonical,
   encodeButtonFrame,
+  encodeGestureFrame,
   encodePointerDeltaFrame,
   encodeReleaseAllFrame,
   encodeScrollFrame
@@ -59,4 +60,21 @@ test('scroll update frame matches the frozen golden vector', () => {
     toHex(encodeScrollFrame(44, 123456791, -0.5, 120, 2)),
     '010301002c00000017cd5b0700000000000000bf0000f04202000000'
   );
+});
+
+test('pinch update frame carries gesture phase and scale ratio', () => {
+  const bytes = new Uint8Array(
+    encodeGestureFrame(47, 123456794, 1, 2, 0, 1.05, 0.5)
+  );
+  const view = new DataView(bytes.buffer);
+  assert.equal(bytes.length, 28);
+  assert.deepEqual(Array.from(bytes.slice(0, 20)), [
+    1, 4, 1, 0,
+    47, 0, 0, 0,
+    26, 205, 91, 7,
+    0, 0, 0, 0,
+    1, 2, 0, 0
+  ]);
+  assert.ok(Math.abs(view.getFloat32(20, true) - 1.05) < 0.000001);
+  assert.ok(Math.abs(view.getFloat32(24, true) - 0.5) < 0.000001);
 });

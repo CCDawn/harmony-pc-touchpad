@@ -10,12 +10,15 @@ import { encodeBase64Url } from '../pairing/Encoding';
 import {
   buildAuthCanonical,
   encodeButtonFrame,
+  encodeGestureFrame,
   encodePointerDeltaFrame,
   encodeReleaseAllFrame,
   encodeScrollFrame
 } from './InputContract';
 import {
+  GesturePhase,
   ScrollPhase,
+  SwipeDirection,
   TouchpadButton
 } from './TouchpadGesture';
 
@@ -23,6 +26,9 @@ const responseTimeoutMs: number = 10000;
 const inputPath: string = '/input';
 const minimumPointerIntervalMs: number = 10;
 const minimumScrollIntervalMs: number = 10;
+const pinchGestureKind: number = 1;
+const threeFingerSwipeGestureKind: number = 3;
+const fourFingerSwipeGestureKind: number = 4;
 
 interface ProtocolVersionJson {
   major: number;
@@ -268,13 +274,17 @@ export class InputConnection {
   private heartbeatId: number = -1;
   private isConnected: boolean = false;
   private maxInputRateHz: number = 120;
+  private supportsGesture: boolean = false;
   private lastPointerAtMs: number = 0;
   private lastScrollAtMs: number = 0;
+  private lastPinchAtMs: number = 0;
   private pendingPointerDx: number = 0;
   private pendingPointerDy: number = 0;
   private pendingPointerVelocity: number = 0;
   private pendingScrollDx: number = 0;
   private pendingScrollDy: number = 0;
+  private pendingPinchScaleRatio: number = 1;
+  private pendingPinchVelocity: number = 0;
   private sendTail: Promise<void> = Promise.resolve();
 
   constructor(
@@ -345,7 +355,7 @@ export class InputConnection {
       const outgoingHelloPayload: HelloPayload = {
         deviceId: this.deviceId,
         deviceName: 'Harmony Phone',
-        capabilities: ['pointer-delta', 'scroll-v1']
+        capabilities: ['pointer-delta', 'scroll-v1', 'gesture-v1']
       };
       await this.sendText(controlMessage(
         'HELLO',
@@ -370,6 +380,7 @@ export class InputConnection {
       }
       this.sessionId = helloAck.sessionId;
       this.maxInputRateHz = helloPayload.maxInputRateHz;
+      this.supportsGesture = helloPayload.capabilities.includes('gesture-v1');
 
       grantWaiter = new ControlResponseWaiter(client, 'CONTROL_GRANTED');
       const requestPayload: EmptyPayload = {};
@@ -390,8 +401,10 @@ export class InputConnection {
       this.isConnected = true;
       this.lastPointerAtMs = 0;
       this.lastScrollAtMs = 0;
+      this.lastPinchAtMs = 0;
       this.resetPendingPointer();
       this.resetPendingScroll();
+      this.resetPendingPinch();
       this.startHeartbeat(helloPayload.heartbeatMs);
       this.statusListener({
         connected: true,
@@ -446,6 +459,7 @@ export class InputConnection {
     }
     this.flushPendingPointer();
     this.flushPendingScroll();
+    this.flushPendingPinch();
     const timestampUs: number = monotonicMicroseconds();
     this.enqueue(encodeButtonFrame(
       this.nextSequence(),
@@ -467,6 +481,7 @@ export class InputConnection {
     }
     this.flushPendingPointer();
     this.flushPendingScroll();
+    this.flushPendingPinch();
     this.enqueue(encodeButtonFrame(
       this.nextSequence(),
       monotonicMicroseconds(),
@@ -508,12 +523,71 @@ export class InputConnection {
     ));
   }
 
+  pinch(
+    phase: GesturePhase,
+    scaleRatio: number,
+    scaleVelocity: number
+  ): void {
+    if (!this.isConnected || !this.supportsGesture) {
+      return;
+    }
+    const nowMs: number = systemDateTime.getUptime(
+      systemDateTime.TimeType.STARTUP,
+      false
+    );
+    if (phase === 'update') {
+      this.pendingPinchScaleRatio *= scaleRatio;
+      this.pendingPinchVelocity = scaleVelocity;
+      if (nowMs - this.lastPinchAtMs < this.gestureIntervalMs()) {
+        return;
+      }
+      this.flushPendingPinch(nowMs);
+      return;
+    }
+
+    this.flushPendingPinch(nowMs);
+    this.lastPinchAtMs = nowMs;
+    this.enqueue(encodeGestureFrame(
+      this.nextSequence(),
+      monotonicMicroseconds(),
+      pinchGestureKind,
+      this.scrollPhaseCode(phase),
+      0,
+      scaleRatio,
+      scaleVelocity
+    ));
+  }
+
+  swipe(
+    fingers: 3 | 4,
+    direction: SwipeDirection,
+    distance: number,
+    velocity: number
+  ): void {
+    if (!this.isConnected || !this.supportsGesture) {
+      return;
+    }
+    this.flushPendingPointer();
+    this.flushPendingScroll();
+    this.flushPendingPinch();
+    this.enqueue(encodeGestureFrame(
+      this.nextSequence(),
+      monotonicMicroseconds(),
+      fingers === 3 ? threeFingerSwipeGestureKind : fourFingerSwipeGestureKind,
+      this.scrollPhaseCode('end'),
+      this.swipeDirectionCode(direction),
+      distance,
+      velocity
+    ));
+  }
+
   releaseAll(): void {
     if (!this.isConnected) {
       return;
     }
     this.flushPendingPointer();
     this.flushPendingScroll();
+    this.flushPendingPinch();
     this.enqueue(encodeReleaseAllFrame(
       this.nextSequence(),
       monotonicMicroseconds()
@@ -525,6 +599,7 @@ export class InputConnection {
     if (this.isConnected && this.client !== undefined) {
       this.flushPendingPointer();
       this.flushPendingScroll();
+      this.flushPendingPinch();
       this.enqueue(encodeReleaseAllFrame(
         this.nextSequence(),
         monotonicMicroseconds()
@@ -536,8 +611,10 @@ export class InputConnection {
     }
     this.isConnected = false;
     this.maxInputRateHz = 120;
+    this.supportsGesture = false;
     this.resetPendingPointer();
     this.resetPendingScroll();
+    this.resetPendingPinch();
     await this.closeSocket();
   }
 
@@ -636,6 +713,29 @@ export class InputConnection {
     ));
   }
 
+  private flushPendingPinch(nowMs?: number): void {
+    if (this.pendingPinchScaleRatio === 1) {
+      return;
+    }
+    const sendAtMs: number = nowMs ?? systemDateTime.getUptime(
+      systemDateTime.TimeType.STARTUP,
+      false
+    );
+    this.lastPinchAtMs = sendAtMs;
+    const scaleRatio: number = this.pendingPinchScaleRatio;
+    const scaleVelocity: number = this.pendingPinchVelocity;
+    this.resetPendingPinch();
+    this.enqueue(encodeGestureFrame(
+      this.nextSequence(),
+      monotonicMicroseconds(),
+      pinchGestureKind,
+      this.scrollPhaseCode('update'),
+      0,
+      scaleRatio,
+      scaleVelocity
+    ));
+  }
+
   private resetPendingPointer(): void {
     this.pendingPointerDx = 0;
     this.pendingPointerDy = 0;
@@ -647,7 +747,19 @@ export class InputConnection {
     this.pendingScrollDy = 0;
   }
 
+  private resetPendingPinch(): void {
+    this.pendingPinchScaleRatio = 1;
+    this.pendingPinchVelocity = 0;
+  }
+
   private scrollIntervalMs(): number {
+    return Math.max(
+      minimumScrollIntervalMs,
+      Math.ceil(1000 / this.maxInputRateHz)
+    );
+  }
+
+  private gestureIntervalMs(): number {
     return Math.max(
       minimumScrollIntervalMs,
       Math.ceil(1000 / this.maxInputRateHz)
@@ -673,6 +785,19 @@ export class InputConnection {
       return 2;
     }
     if (phase === 'end') {
+      return 3;
+    }
+    return 4;
+  }
+
+  private swipeDirectionCode(direction: SwipeDirection): number {
+    if (direction === 'up') {
+      return 1;
+    }
+    if (direction === 'down') {
+      return 2;
+    }
+    if (direction === 'left') {
       return 3;
     }
     return 4;

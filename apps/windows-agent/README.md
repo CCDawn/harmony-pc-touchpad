@@ -9,7 +9,8 @@ available; distribution signing and final beta hardening are not complete.
 - strict Protocol v1 binary decoding against the repository's shared vectors;
 - sequence validation with fail-closed release on gaps and dispatch failures;
 - idempotent release on disconnect and timeout;
-- pointer, button, and two-axis wheel injection through Win32 `SendInput`;
+- pointer, button, two-axis wheel, allowlisted keyboard-chord, and Ctrl+wheel
+  zoom injection through Win32 `SendInput`;
 - fractional-delta accumulation before integer Windows input commands;
 - a `WinExe` tray shell, so launching the agent does not create a console
   window; and
@@ -39,11 +40,11 @@ available; distribution signing and final beta hardening are not complete.
   listener.
 
 The tray menu displays a scannable two-minute pairing JSON payload. Its
-`<agent-id>.local` endpoint matches the advertised DNS-SD host. Semantic
-gestures are still rejected
-explicitly at the Windows sink and are not advertised during capability
-negotiation; they will be added through a separate allowlisted action mapper.
-No arbitrary keyboard input is accepted.
+`<agent-id>.local` endpoint matches the advertised DNS-SD host. The Windows
+sink accepts only the protocol's allowlisted semantic gestures: pinch zoom,
+three-finger task/application actions, and four-finger virtual-desktop
+switching. Rotation and four-finger vertical swipes remain disabled. No
+arbitrary keyboard input is accepted.
 
 ## Projects
 

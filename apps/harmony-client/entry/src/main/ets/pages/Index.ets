@@ -203,6 +203,10 @@ struct Index {
       event.stopPropagation();
       return;
     }
+    if (event.source !== SourceType.TouchScreen) {
+      event.stopPropagation();
+      return;
+    }
     const eventTimeMs: number = event.timestamp / 1000000;
     let type: TouchpadEventType;
     if (event.type === TouchType.Down) {
@@ -211,8 +215,11 @@ struct Index {
       type = 'move';
     } else if (event.type === TouchType.Up) {
       type = 'up';
-    } else {
+    } else if (event.type === TouchType.Cancel) {
       type = 'cancel';
+    } else {
+      event.stopPropagation();
+      return;
     }
     const activeTouches: Array<TouchPoint> = event.touches
       .filter((touch: TouchObject): boolean =>
@@ -265,6 +272,20 @@ struct Index {
           action.dy,
           action.phase
         );
+      } else if (action.kind === 'pinch') {
+        this.inputConnection?.pinch(
+          action.phase,
+          action.scaleRatio,
+          action.scaleVelocity
+        );
+      } else if (action.kind === 'swipe') {
+        this.inputConnection?.swipe(
+          action.fingers,
+          action.direction,
+          action.distance,
+          action.velocity
+        );
+        this.playClickHaptic(false);
       } else {
         this.inputConnection?.releaseAll();
       }
@@ -421,7 +442,7 @@ struct Index {
               .fontSize(22)
               .fontWeight(FontWeight.Medium)
               .fontColor('#FFFFFF')
-            Text('一指滑动移动光标 · 轻点执行左键单击')
+            Text('一指移动 · 双指滚动/捏合缩放 · 三/四指滑动切换')
               .fontSize(14)
               .fontColor('#CCFFFFFF')
           }
