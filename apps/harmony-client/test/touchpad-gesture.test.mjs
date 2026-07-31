@@ -41,10 +41,6 @@ test('short stationary one-finger touch emits one left click', () => {
   gesture.handleTouches('down', [start], [start], 2000);
   assert.deepEqual(
     gesture.handleTouches('up', [], [point(1, 103, 204)], 2140),
-    []
-  );
-  assert.deepEqual(
-    gesture.flushPendingTap(),
     [{ kind: 'click', button: 'left' }]
   );
 });
@@ -56,7 +52,7 @@ test('double tap then hold transitions into bounded left-button drag', () => {
   gesture.handleTouches('down', [first], [first], 3000);
   assert.deepEqual(
     gesture.handleTouches('up', [], [first], 3080),
-    []
+    [{ kind: 'click', button: 'left' }]
   );
 
   const second = point(2, 102, 201);
@@ -79,14 +75,14 @@ test('double tap then hold transitions into bounded left-button drag', () => {
   );
 });
 
-test('double tap without movement emits two clicks after the second release', () => {
+test('double tap without movement emits the second click after release', () => {
   const gesture = new TouchpadGesture();
   const first = point(1, 100, 200);
 
   gesture.handleTouches('down', [first], [first], 3400);
   assert.deepEqual(
     gesture.handleTouches('up', [], [first], 3480),
-    []
+    [{ kind: 'click', button: 'left' }]
   );
   const second = point(2, 102, 201);
   assert.deepEqual(
@@ -95,21 +91,17 @@ test('double tap without movement emits two clicks after the second release', ()
   );
   assert.deepEqual(
     gesture.handleTouches('up', [], [second], 3680),
-    [
-      { kind: 'click', button: 'left' },
-      { kind: 'click', button: 'left' }
-    ]
+    [{ kind: 'click', button: 'left' }]
   );
 });
 
-test('double tap stays eligible after the responsive single-click flush', () => {
+test('double tap stays eligible after the immediate first click', () => {
   const gesture = new TouchpadGesture();
   const first = point(1, 100, 200);
 
   gesture.handleTouches('down', [first], [first], 3800);
-  gesture.handleTouches('up', [], [first], 3880);
   assert.deepEqual(
-    gesture.flushPendingTap(),
+    gesture.handleTouches('up', [], [first], 3880),
     [{ kind: 'click', button: 'left' }]
   );
   const second = point(2, 102, 201);

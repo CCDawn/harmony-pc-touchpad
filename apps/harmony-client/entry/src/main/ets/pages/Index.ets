@@ -59,7 +59,6 @@ struct Index {
   private settingsStore?: TouchpadSettingsStore;
   private overlayTimerId: number = -1;
   private settingsSaveTimerId: number = -1;
-  private pendingTapTimerId: number = -1;
   private readonly touchpadGesture: TouchpadGesture =
     new TouchpadGesture();
 
@@ -103,7 +102,6 @@ struct Index {
       clearTimeout(this.settingsSaveTimerId);
       this.settingsSaveTimerId = -1;
     }
-    this.clearPendingTapTimer();
     this.touchpadGesture.handleTouches(
       'cancel',
       [],
@@ -216,10 +214,6 @@ struct Index {
     } else {
       type = 'cancel';
     }
-    if (type === 'down') {
-      this.clearPendingTapTimer();
-    }
-
     const activeTouches: Array<TouchPoint> = event.touches
       .filter((touch: TouchObject): boolean =>
         touch.type !== TouchType.Up &&
@@ -243,11 +237,6 @@ struct Index {
         eventTimeMs
       );
     this.dispatchTouchActions(actions);
-    if (this.touchpadGesture.hasPendingTap()) {
-      this.schedulePendingTapFlush();
-    } else {
-      this.clearPendingTapTimer();
-    }
     if (type === 'down') {
       this.showStatusOverlay = false;
     }
@@ -280,21 +269,6 @@ struct Index {
         this.inputConnection?.releaseAll();
       }
     });
-  }
-
-  private schedulePendingTapFlush(): void {
-    this.clearPendingTapTimer();
-    this.pendingTapTimerId = setTimeout((): void => {
-      this.pendingTapTimerId = -1;
-      this.dispatchTouchActions(this.touchpadGesture.flushPendingTap());
-    }, this.touchpadGesture.pendingTapTimeoutMs() + 40);
-  }
-
-  private clearPendingTapTimer(): void {
-    if (this.pendingTapTimerId >= 0) {
-      clearTimeout(this.pendingTapTimerId);
-      this.pendingTapTimerId = -1;
-    }
   }
 
   private scheduleOverlayHide(): void {

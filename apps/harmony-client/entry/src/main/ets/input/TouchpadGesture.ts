@@ -94,7 +94,6 @@ export class TouchpadGesture {
   private lastTimeMs: number = 0;
   private moved: boolean = false;
   private doubleTapCandidate: boolean = false;
-  private pendingTap: boolean = false;
   private lastTapTimeMs: number = -10000;
   private lastTapX: number = 0;
   private lastTapY: number = 0;
@@ -121,27 +120,8 @@ export class TouchpadGesture {
     };
   }
 
-  pendingTapTimeoutMs(): number {
-    return Math.min(180, this.doubleTapWindowMs());
-  }
-
   private doubleTapWindowMs(): number {
     return baseDoubleTapIntervalMs * this.settings.dragSensitivity;
-  }
-
-  hasPendingTap(): boolean {
-    return this.pendingTap && !this.doubleTapCandidate;
-  }
-
-  flushPendingTap(): Array<TouchpadAction> {
-    if (!this.pendingTap || this.doubleTapCandidate) {
-      return [];
-    }
-    this.pendingTap = false;
-    return [{
-      kind: 'click',
-      button: 'left'
-    }];
   }
 
   handleTouches(
@@ -210,9 +190,6 @@ export class TouchpadGesture {
         this.lastTapX,
         this.lastTapY
       ) <= baseDoubleTapDistancePx * this.settings.dragSensitivity;
-    const actions: Array<TouchpadAction> = isDoubleTap ?
-      [] :
-      this.flushPendingTap();
     this.mode = 'pointer';
     this.startPoint = point;
     this.lastPoint = point;
@@ -220,7 +197,7 @@ export class TouchpadGesture {
     this.lastTimeMs = timeMs;
     this.moved = false;
     this.doubleTapCandidate = isDoubleTap;
-    return actions;
+    return [];
   }
 
   private movePointer(
@@ -273,7 +250,6 @@ export class TouchpadGesture {
     if (this.mode === 'dragging') {
       this.mode = 'idle';
       this.doubleTapCandidate = false;
-      this.pendingTap = false;
       this.lastTapTimeMs = -10000;
       return [{
         kind: 'button',
@@ -294,14 +270,9 @@ export class TouchpadGesture {
     if (wasDoubleTap && !this.moved &&
       durationMs <= tapDurationMs &&
       totalDistance <= tapDistancePx) {
-      const firstClickPending: boolean = this.pendingTap;
       this.doubleTapCandidate = false;
-      this.pendingTap = false;
       this.lastTapTimeMs = -10000;
-      return firstClickPending ? [
-        { kind: 'click', button: 'left' },
-        { kind: 'click', button: 'left' }
-      ] : [{ kind: 'click', button: 'left' }];
+      return [{ kind: 'click', button: 'left' }];
     }
     if (!wasDoubleTap && !this.moved &&
       durationMs <= tapDurationMs &&
@@ -309,11 +280,9 @@ export class TouchpadGesture {
       this.lastTapTimeMs = timeMs;
       this.lastTapX = point.x;
       this.lastTapY = point.y;
-      this.pendingTap = true;
-      return [];
+      return [{ kind: 'click', button: 'left' }];
     }
     this.doubleTapCandidate = false;
-    this.pendingTap = false;
     return [];
   }
 
@@ -338,7 +307,6 @@ export class TouchpadGesture {
     this.scrollStarted = false;
     this.scrollAxis = 'none';
     this.doubleTapCandidate = false;
-    this.pendingTap = false;
     this.lastTapTimeMs = -10000;
     return actions;
   }
