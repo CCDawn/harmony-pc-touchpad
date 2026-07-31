@@ -22,6 +22,7 @@ import {
 const responseTimeoutMs: number = 10000;
 const inputPath: string = '/input';
 const minimumPointerIntervalMs: number = 8;
+const minimumScrollIntervalMs: number = 10;
 
 interface ProtocolVersionJson {
   major: number;
@@ -266,10 +267,14 @@ export class InputConnection {
   private sequence: number = 0;
   private heartbeatId: number = -1;
   private isConnected: boolean = false;
+  private maxInputRateHz: number = 120;
   private lastPointerAtMs: number = 0;
+  private lastScrollAtMs: number = 0;
   private pendingPointerDx: number = 0;
   private pendingPointerDy: number = 0;
   private pendingPointerVelocity: number = 0;
+  private pendingScrollDx: number = 0;
+  private pendingScrollDy: number = 0;
   private sendTail: Promise<void> = Promise.resolve();
 
   constructor(
@@ -357,10 +362,14 @@ export class InputConnection {
       if (!Array.isArray(helloPayload.capabilities) ||
         !helloPayload.capabilities.includes('pointer-delta') ||
         !Number.isInteger(helloPayload.heartbeatMs) ||
-        helloPayload.heartbeatMs < 100) {
+        helloPayload.heartbeatMs < 100 ||
+        !Number.isInteger(helloPayload.maxInputRateHz) ||
+        helloPayload.maxInputRateHz < 1 ||
+        helloPayload.maxInputRateHz > 1000) {
         throw new Error('电脑未协商出可用的指针控制能力。');
       }
       this.sessionId = helloAck.sessionId;
+      this.maxInputRateHz = helloPayload.maxInputRateHz;
 
       grantWaiter = new ControlResponseWaiter(client, 'CONTROL_GRANTED');
       const requestPayload: EmptyPayload = {};
@@ -380,7 +389,9 @@ export class InputConnection {
       this.sequence = 0;
       this.isConnected = true;
       this.lastPointerAtMs = 0;
+      this.lastScrollAtMs = 0;
       this.resetPendingPointer();
+      this.resetPendingScroll();
       this.startHeartbeat(helloPayload.heartbeatMs);
       this.statusListener({
         connected: true,
@@ -434,6 +445,7 @@ export class InputConnection {
       return;
     }
     this.flushPendingPointer();
+    this.flushPendingScroll();
     const timestampUs: number = monotonicMicroseconds();
     this.enqueue(encodeButtonFrame(
       this.nextSequence(),
@@ -454,6 +466,7 @@ export class InputConnection {
       return;
     }
     this.flushPendingPointer();
+    this.flushPendingScroll();
     this.enqueue(encodeButtonFrame(
       this.nextSequence(),
       monotonicMicroseconds(),
@@ -470,6 +483,22 @@ export class InputConnection {
     if (!this.isConnected) {
       return;
     }
+    const nowMs: number = systemDateTime.getUptime(
+      systemDateTime.TimeType.STARTUP,
+      false
+    );
+    if (phase === 'update') {
+      this.pendingScrollDx += dx;
+      this.pendingScrollDy += dy;
+      if (nowMs - this.lastScrollAtMs < this.scrollIntervalMs()) {
+        return;
+      }
+      this.flushPendingScroll(nowMs);
+      return;
+    }
+
+    this.flushPendingScroll(nowMs);
+    this.lastScrollAtMs = nowMs;
     this.enqueue(encodeScrollFrame(
       this.nextSequence(),
       monotonicMicroseconds(),
@@ -484,6 +513,7 @@ export class InputConnection {
       return;
     }
     this.flushPendingPointer();
+    this.flushPendingScroll();
     this.enqueue(encodeReleaseAllFrame(
       this.nextSequence(),
       monotonicMicroseconds()
@@ -494,6 +524,7 @@ export class InputConnection {
     this.stopHeartbeat();
     if (this.isConnected && this.client !== undefined) {
       this.flushPendingPointer();
+      this.flushPendingScroll();
       this.enqueue(encodeReleaseAllFrame(
         this.nextSequence(),
         monotonicMicroseconds()
@@ -504,7 +535,9 @@ export class InputConnection {
       }
     }
     this.isConnected = false;
+    this.maxInputRateHz = 120;
     this.resetPendingPointer();
+    this.resetPendingScroll();
     await this.closeSocket();
   }
 
@@ -582,10 +615,43 @@ export class InputConnection {
     ));
   }
 
+  private flushPendingScroll(nowMs?: number): void {
+    if (this.pendingScrollDx === 0 && this.pendingScrollDy === 0) {
+      return;
+    }
+    const sendAtMs: number = nowMs ?? systemDateTime.getUptime(
+      systemDateTime.TimeType.STARTUP,
+      false
+    );
+    this.lastScrollAtMs = sendAtMs;
+    const pendingDx: number = this.pendingScrollDx;
+    const pendingDy: number = this.pendingScrollDy;
+    this.resetPendingScroll();
+    this.enqueue(encodeScrollFrame(
+      this.nextSequence(),
+      monotonicMicroseconds(),
+      pendingDx,
+      pendingDy,
+      this.scrollPhaseCode('update')
+    ));
+  }
+
   private resetPendingPointer(): void {
     this.pendingPointerDx = 0;
     this.pendingPointerDy = 0;
     this.pendingPointerVelocity = 0;
+  }
+
+  private resetPendingScroll(): void {
+    this.pendingScrollDx = 0;
+    this.pendingScrollDy = 0;
+  }
+
+  private scrollIntervalMs(): number {
+    return Math.max(
+      minimumScrollIntervalMs,
+      Math.ceil(1000 / this.maxInputRateHz)
+    );
   }
 
   private buttonCode(button: TouchpadButton): number {
